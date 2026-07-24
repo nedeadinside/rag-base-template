@@ -58,9 +58,6 @@ async def ingest(
     """
     Run the ingestion pipeline for one document and deliver a webhook callback.
 
-    On any error a failure callback is fired (when a webhook URL is set) and the error is
-    re-raised so ARQ records the failure. The spooled file is removed either way.
-
     :param ctx: The worker context holding the shared clients.
     :param file_path: Path to the spooled document on disk.
     :param webhook_url: Optional URL to POST the terminal status to.

@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 class WebhookClient:
     """
-    Best-effort deliverer of job-status callbacks.
+    Deliverer of job-status callbacks.
     """
 
     def __init__(self, config: "WebhookConfig", client: httpx.AsyncClient) -> None:
@@ -26,7 +26,7 @@ class WebhookClient:
 
     async def notify(self, url: str, payload: dict[str, Any]) -> None:
         """
-        POST a payload to a caller-supplied URL once, swallowing delivery failures.
+        POST a payload to a caller-supplied URL, swallowing delivery failures.
 
         :param url: The caller endpoint to notify.
         :param payload: The JSON-serializable status payload.

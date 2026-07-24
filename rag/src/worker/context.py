@@ -13,8 +13,6 @@ if TYPE_CHECKING:
 class WorkerContext(TypedDict):
     """
     Partial view of the worker context, covering the keys this app populates and reads.
-
-    The runtime injects its own keys too; only what the app touches is declared here.
     """
 
     http: "httpx.AsyncClient"
