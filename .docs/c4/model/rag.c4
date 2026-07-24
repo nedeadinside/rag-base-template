@@ -1,0 +1,50 @@
+model {
+  extend rag {
+    worker = container 'Worker' {
+      technology 'ARQ / Python'
+      description 'Consumes ingestion jobs and runs the pipeline'
+
+      task = component 'Ingest Task' {
+        technology 'ARQ task'
+        description 'Orchestrates one ingestion job and fires the webhook callback'
+      }
+      pipeline = component 'Ingestion Pipeline' {
+        technology 'Python'
+        description 'Chunks, embeds, and upserts a document'
+      }
+      doclingClient = component 'Docling Client' {
+        technology 'httpx'
+        description 'Calls docling-serve for chunking'
+      }
+      embedderClient = component 'Embedder Client' {
+        technology 'httpx'
+        description 'Calls the embedding service'
+      }
+      qdrantClient = component 'Qdrant Client' {
+        technology 'httpx'
+        description 'Upserts vectors into the store'
+      }
+      webhookClient = component 'Webhook Client' {
+        technology 'httpx'
+        description 'Delivers status callbacks'
+      }
+
+      task -> pipeline 'runs work via' 'in-process call'
+      pipeline -> doclingClient 'chunks document via'
+      pipeline -> embedderClient 'embeds chunks via'
+      pipeline -> qdrantClient 'upserts vectors via'
+      task -> webhookClient 'delivers callback via'
+    }
+
+    broker = queue 'Job Broker' {
+      technology 'Redis'
+      description 'ARQ task queue and result store'
+    }
+
+    worker.task -[async]-> broker 'consumes job / stores result' 'RESP over TCP'
+    worker.doclingClient -> docling 'POST /v1/chunk/hybrid/file' 'multipart/form-data over HTTP'
+    worker.embedderClient -> embedder 'POST /embeddings' 'HTTP / JSON'
+    worker.qdrantClient -> qdrant 'upserts vectors' 'HTTP / JSON'
+    worker.webhookClient -[async]-> webhook 'POST job status' 'HTTP / JSON'
+  }
+}

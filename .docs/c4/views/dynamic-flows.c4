@@ -1,0 +1,18 @@
+views {
+  dynamic view ingestFlow {
+    title 'Flow - Ingest a document'
+
+    rag.worker.task -> rag.broker 'picks up job'
+    rag.worker.task -> rag.worker.pipeline 'run(...)'
+    rag.worker.pipeline -> rag.worker.doclingClient 'chunk(file)'
+    rag.worker.doclingClient -> docling 'POST /v1/chunk/hybrid/file'
+    rag.worker.pipeline -> rag.worker.embedderClient 'embed(texts)'
+    rag.worker.embedderClient -> embedder 'POST /embeddings'
+    rag.worker.pipeline -> rag.worker.qdrantClient 'upsert(points)'
+    rag.worker.qdrantClient -> qdrant 'PUT points'
+    rag.worker.task -> rag.worker.webhookClient 'notify(status)'
+    rag.worker.webhookClient -> webhook 'POST job status'
+
+    autoLayout LeftRight
+  }
+}

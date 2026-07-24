@@ -15,7 +15,7 @@ model {
 
   reranker = system 'Reranker' {
     #external
-    technology 'HTTP'
+    technology 'HTTP / OpenAI API'
     description 'Reorders retrieved candidates by relevance'
     style { color muted }
   }
@@ -27,9 +27,21 @@ model {
     style { color muted }
   }
 
+  docling = system 'Docling' {
+    #external
+    technology 'docling-serve'
+    description 'Converts and chunks documents'
+    style { color muted }
+  }
+
+  webhook = system 'Webhook Receiver' {
+    #external
+    technology 'HTTP'
+    description 'Caller endpoint notified when an ingestion job finishes'
+    style { color muted }
+  }
+
   user -> rag 'ingests documents / asks questions' 'HTTP'
-  rag -> qdrant 'upserts and queries vectors' 'HTTP'
-  rag -> embedder 'embeds text' 'HTTP'
   rag -> reranker 'reranks retrieved chunks' 'HTTP'
   rag -> llm 'generates answers' 'HTTP'
 }
