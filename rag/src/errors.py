@@ -50,3 +50,9 @@ class QdrantError(UpstreamError):
     """
     The Qdrant vector store failed.
     """
+
+
+class RerankerError(UpstreamError):
+    """
+    The reranking service failed.
+    """

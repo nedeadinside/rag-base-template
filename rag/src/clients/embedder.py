@@ -23,14 +23,17 @@ class EmbedderClient:
         self._config = config
         self._client = client
 
-    async def embed(self, texts: list[str]) -> list[list[float]]:
+    async def embed(self, texts: list[str], *, prefix: str | None = None) -> list[list[float]]:
         """
         Embed a list of texts, batching by the configured batch size.
 
         :param texts: The texts to embed.
+        :param prefix: Optional prefix prepended to every text before embedding.
         :raises EmbedderError: If the service is unreachable or returns an unusable response.
         :return: One embedding vector per input text, in order.
         """
+        if prefix:
+            texts = [f"{prefix}: {text}" for text in texts]
         headers = {}
         if self._config.api_key is not None:
             headers["Authorization"] = f"Bearer {self._config.api_key.get_secret_value()}"
