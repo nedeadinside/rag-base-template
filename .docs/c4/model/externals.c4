@@ -8,7 +8,7 @@ model {
 
   embedder = system 'Embedder' {
     #external
-    technology 'HTTP'
+    technology 'HTTP / OpenAI API'
     description 'Encodes text into embeddings'
     style { color muted }
   }
@@ -22,14 +22,14 @@ model {
 
   llm = system 'LLM' {
     #external
-    technology 'HTTP'
+    technology 'HTTP / OpenAI API'
     description 'Generates answers from retrieved context'
     style { color muted }
   }
 
-  user -> rag 'ingests documents / asks questions' 'HTTPS'
+  user -> rag 'ingests documents / asks questions' 'HTTP'
   rag -> qdrant 'upserts and queries vectors' 'HTTP'
-  rag -> embedder 'embeds text' 'HTTPS'
-  rag -> reranker 'reranks retrieved chunks' 'HTTPS'
-  rag -> llm 'generates answers' 'HTTPS'
+  rag -> embedder 'embeds text' 'HTTP'
+  rag -> reranker 'reranks retrieved chunks' 'HTTP'
+  rag -> llm 'generates answers' 'HTTP'
 }
