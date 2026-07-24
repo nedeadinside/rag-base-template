@@ -57,6 +57,8 @@ class EmbedderConfig(BaseModel):
     model: str
     timeout_sec: int
     batch_size: int
+    query_prefix: str | None = None
+    passage_prefix: str | None = None
     api_key: SecretStr | None = None
 
 
@@ -69,6 +71,26 @@ class QdrantConfig(BaseModel):
     timeout_sec: int
     upsert_batch_size: int
     api_key: SecretStr | None = None
+
+
+class RerankerConfig(BaseModel):
+    """
+    Settings for the reranking service.
+    """
+
+    url: str
+    model: str
+    timeout_sec: int
+    api_key: SecretStr | None = None
+
+
+class RetrieveConfig(BaseModel):
+    """
+    Retrieval pipeline settings.
+    """
+
+    top_k: int
+    top_n: int
 
 
 class WebhookConfig(BaseModel):
@@ -99,6 +121,8 @@ class AppConfig(BaseSettings):
     docling: DoclingConfig
     embedder: EmbedderConfig
     qdrant: QdrantConfig
+    reranker: RerankerConfig
+    retrieve: RetrieveConfig
     webhook: WebhookConfig
 
     @classmethod

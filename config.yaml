@@ -16,20 +16,28 @@ rag:
     url: http://docling:5001
     timeout_sec: 300
     chunker: hybrid
-    api_key: null
 
   embedder:
     url: http://embedder:8000/v1
     model: intfloat/multilingual-e5-large
     timeout_sec: 60
     batch_size: 32
-    api_key: null
+    query_prefix: query
+    passage_prefix: passage
 
   qdrant:
     url: http://qdrant:6333
     timeout_sec: 30
     upsert_batch_size: 128
-    api_key: null
+
+  reranker:
+    url: http://reranker:8000/v1
+    model: BAAI/bge-reranker-v2-m3
+    timeout_sec: 60
+
+  retrieve:
+    top_k: 20
+    top_n: 5
 
   webhook:
     timeout_sec: 15
