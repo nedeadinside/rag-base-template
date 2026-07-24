@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING, Any
 
-import httpx
+from qdrant_client import AsyncQdrantClient, models
+from qdrant_client.common.client_exceptions import QdrantException
+from qdrant_client.http.exceptions import ApiException
 
 from errors import QdrantError
 
@@ -10,28 +12,24 @@ if TYPE_CHECKING:
 
 class QdrantClient:
     """
-    Thin client over the Qdrant REST API.
+    Thin wrapper over the async Qdrant SDK client.
     """
 
-    def __init__(self, config: "QdrantConfig", client: httpx.AsyncClient) -> None:
+    def __init__(self, config: "QdrantConfig") -> None:
         """
-        Store the Qdrant settings and the shared HTTP client.
+        Build the underlying async Qdrant client from the settings.
 
         :param config: Qdrant vector store settings.
-        :param client: Shared async HTTP client.
         """
         self._config = config
-        self._client = client
+        api_key = config.api_key.get_secret_value() if config.api_key is not None else None
+        self._client = AsyncQdrantClient(url=config.url, api_key=api_key, timeout=config.timeout_sec)
 
-    def _headers(self) -> dict[str, str]:
+    async def close(self) -> None:
         """
-        Build the request headers, adding the API key when configured.
-
-        :return: The headers to send with every request.
+        Close the underlying client and its connections.
         """
-        if self._config.api_key is not None:
-            return {"api-key": self._config.api_key.get_secret_value()}
-        return {}
+        await self._client.close()
 
     async def ensure_collection(self, collection: str, *, vector_size: int) -> None:
         """
@@ -41,37 +39,24 @@ class QdrantClient:
         :param vector_size: Dimensionality the collection vectors must have.
         :raises QdrantError: If the store is unreachable, the schema does not match, or the request fails.
         """
-        base = f"{self._config.url}/collections/{collection}"
         try:
-            response = await self._client.get(base, headers=self._headers(), timeout=self._config.timeout_sec)
-        except httpx.HTTPError as e:
-            raise QdrantError(f"ensure collection failed: {e}") from e
-
-        if response.status_code == httpx.codes.OK:
-            try:
-                vectors = response.json()["result"]["config"]["params"]["vectors"]
-                if not isinstance(vectors, dict) or "size" not in vectors:
+            if await self._client.collection_exists(collection):
+                info = await self._client.get_collection(collection)
+                vectors = info.config.params.vectors
+                if not isinstance(vectors, models.VectorParams):
                     raise QdrantError(f"collection {collection} does not use a single unnamed vector")
-                if vectors["size"] != vector_size:
-                    raise QdrantError(f"collection {collection} vector size {vectors['size']} != {vector_size}")
-            except (KeyError, TypeError) as e:
-                raise QdrantError(f"ensure collection failed: unexpected schema for {collection}: {e}") from e
-            return
-
-        if response.status_code == httpx.codes.NOT_FOUND:
-            body: dict[str, Any] = {"vectors": {"size": vector_size, "distance": "Cosine"}}
+                if vectors.size != vector_size:
+                    raise QdrantError(f"collection {collection} vector size {vectors.size} != {vector_size}")
+                return
             try:
-                create = await self._client.put(
-                    base, headers=self._headers(), json=body, timeout=self._config.timeout_sec
+                await self._client.create_collection(
+                    collection,
+                    vectors_config=models.VectorParams(size=vector_size, distance=models.Distance.COSINE),
                 )
-                create.raise_for_status()
-            except httpx.HTTPError as e:
-                raise QdrantError(f"ensure collection failed: {e}") from e
-            return
-
-        try:
-            response.raise_for_status()
-        except httpx.HTTPError as e:
+            except (ApiException, QdrantException):
+                if not await self._client.collection_exists(collection):
+                    raise
+        except (ApiException, QdrantException) as e:
             raise QdrantError(f"ensure collection failed: {e}") from e
 
     async def upsert(self, collection: str, points: list[dict[str, Any]]) -> None:
@@ -79,21 +64,47 @@ class QdrantClient:
         Upsert points into the collection in batches, waiting for each batch to persist.
 
         :param collection: Name of the target collection.
-        :param points: Qdrant point dicts with id, vector, and payload.
+        :param points: Point dicts with id, vector, and payload.
         :raises QdrantError: If the store is unreachable or the request fails.
         """
-        url = f"{self._config.url}/collections/{collection}/points"
         batch_size = self._config.upsert_batch_size
         try:
             for start in range(0, len(points), batch_size):
                 batch = points[start : start + batch_size]
-                response = await self._client.put(
-                    url,
-                    headers=self._headers(),
-                    params={"wait": "true"},
-                    json={"points": batch},
-                    timeout=self._config.timeout_sec,
+                await self._client.upsert(
+                    collection,
+                    points=[models.PointStruct(**point) for point in batch],
+                    wait=True,
                 )
-                response.raise_for_status()
-        except httpx.HTTPError as e:
+        except (ApiException, QdrantException) as e:
             raise QdrantError(f"upsert failed: {e}") from e
+
+    async def search(
+        self,
+        collection: str,
+        vector: list[float],
+        *,
+        limit: int,
+        query_filter: "models.Filter | None" = None,
+    ) -> list[models.ScoredPoint]:
+        """
+        Search the collection for the points nearest to a query vector.
+
+        :param collection: Name of the target collection.
+        :param vector: Query embedding vector.
+        :param limit: Maximum number of hits to return.
+        :param query_filter: Optional Qdrant filter applied to the search.
+        :raises QdrantError: If the store is unreachable or the request fails.
+        :return: Scored points with id, score, and payload.
+        """
+        try:
+            response = await self._client.query_points(
+                collection,
+                query=vector,
+                limit=limit,
+                query_filter=query_filter,
+                with_payload=True,
+            )
+        except (ApiException, QdrantException) as e:
+            raise QdrantError(f"search failed: {e}") from e
+        return response.points
