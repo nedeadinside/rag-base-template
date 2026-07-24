@@ -1,0 +1,35 @@
+rag:
+  queue:
+    redis_url: redis://rag-redis:6379/0
+    job_timeout: 3600
+    concurrency: 4
+
+  logging:
+    level: INFO
+
+  ingest:
+    max_upload_bytes: 52428800
+    allowed_extensions: [".pdf", ".docx", ".pptx", ".xlsx", ".html", ".md", ".txt"]
+    chunk_size: 512
+
+  docling:
+    url: http://docling:5001
+    timeout_sec: 300
+    chunker: hybrid
+    api_key: null
+
+  embedder:
+    url: http://embedder:8000/v1
+    model: intfloat/multilingual-e5-large
+    timeout_sec: 60
+    batch_size: 32
+    api_key: null
+
+  qdrant:
+    url: http://qdrant:6333
+    timeout_sec: 30
+    upsert_batch_size: 128
+    api_key: null
+
+  webhook:
+    timeout_sec: 15
