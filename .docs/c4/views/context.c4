@@ -1,0 +1,7 @@
+views {
+  view index {
+    title 'System Context - RAG Service'
+    include *
+    autoLayout LeftRight
+  }
+}

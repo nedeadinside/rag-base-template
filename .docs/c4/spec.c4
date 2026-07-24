@@ -1,0 +1,12 @@
+specification {
+  element person    { style { shape person } }
+  element system
+  element container
+  element component
+  element database  { style { shape cylinder } }
+  element queue     { style { shape queue } }
+
+  relationship async { line dotted; head vee }
+
+  tag external
+}

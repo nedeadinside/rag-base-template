@@ -1,0 +1,35 @@
+model {
+  qdrant = database 'Vector Store' {
+    #external
+    technology 'Qdrant'
+    description 'Stores and searches document embeddings'
+    style { color muted }
+  }
+
+  embedder = system 'Embedder' {
+    #external
+    technology 'HTTP'
+    description 'Encodes text into embeddings'
+    style { color muted }
+  }
+
+  reranker = system 'Reranker' {
+    #external
+    technology 'HTTP'
+    description 'Reorders retrieved candidates by relevance'
+    style { color muted }
+  }
+
+  llm = system 'LLM' {
+    #external
+    technology 'HTTP'
+    description 'Generates answers from retrieved context'
+    style { color muted }
+  }
+
+  user -> rag 'ingests documents / asks questions' 'HTTPS'
+  rag -> qdrant 'upserts and queries vectors' 'HTTP'
+  rag -> embedder 'embeds text' 'HTTPS'
+  rag -> reranker 'reranks retrieved chunks' 'HTTPS'
+  rag -> llm 'generates answers' 'HTTPS'
+}

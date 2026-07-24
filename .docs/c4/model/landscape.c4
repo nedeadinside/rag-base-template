@@ -1,0 +1,10 @@
+model {
+  user = person 'User' {
+    description 'Ingests documents and asks questions'
+  }
+
+  rag = system 'RAG Service' {
+    technology 'FastAPI / Python'
+    description 'Ingests documents, retrieves relevant context, generates answers'
+  }
+}
