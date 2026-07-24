@@ -30,7 +30,7 @@ async def startup(ctx: WorkerContext) -> None:
     cfg = load_config()
     logging.basicConfig(level=cfg.logging.level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     http = httpx.AsyncClient()
-    qdrant = QdrantClient(cfg.qdrant, http)
+    qdrant = QdrantClient(cfg.qdrant)
     ctx["http"] = http
     ctx["cfg"] = cfg
     ctx["docling"] = DoclingClient(cfg.docling, http)
@@ -45,6 +45,7 @@ async def shutdown(ctx: WorkerContext) -> None:
 
     :param ctx: The worker context.
     """
+    await ctx["qdrant"].close()
     await ctx["http"].aclose()
 
 
@@ -79,6 +80,7 @@ async def ingest(
             embedder=ctx["embedder"],
             qdrant=ctx["qdrant"],
             chunk_size=cfg.ingest.chunk_size,
+            passage_prefix=cfg.embedder.passage_prefix,
         )
     except Exception as e:
         if webhook_url is not None:
