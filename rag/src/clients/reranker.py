@@ -1,7 +1,7 @@
 import httpx
 
 from errors import RerankerError
-from models.config import RerankerConfig
+from models import RerankerConfig
 
 
 class RerankerClient:

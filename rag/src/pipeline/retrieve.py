@@ -1,9 +1,7 @@
 from qdrant_client import models
 
-from clients.embedder import EmbedderClient
-from clients.qdrant import QdrantClient
-from clients.reranker import RerankerClient
-from models.pipeline import RetrievedChunk
+from clients import EmbedderClient, QdrantClient, RerankerClient
+from models import RetrievedChunk
 
 
 async def run(

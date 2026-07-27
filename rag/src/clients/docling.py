@@ -4,8 +4,7 @@ from pathlib import Path
 import httpx
 
 from errors import DoclingError
-from models.clients import Chunk
-from models.config import DoclingConfig
+from models import Chunk, DoclingConfig
 
 
 class DoclingClient:

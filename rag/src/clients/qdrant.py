@@ -5,7 +5,7 @@ from qdrant_client.common.client_exceptions import QdrantException
 from qdrant_client.http.exceptions import ApiException
 
 from errors import QdrantError
-from models.config import QdrantConfig
+from models import QdrantConfig
 
 
 class QdrantClient:

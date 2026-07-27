@@ -1,10 +1,8 @@
 import uuid
 from typing import Any
 
-from clients.docling import DoclingClient
-from clients.embedder import EmbedderClient
-from clients.qdrant import QdrantClient
-from models.pipeline import IngestResult
+from clients import DoclingClient, EmbedderClient, QdrantClient
+from models import IngestResult
 
 
 async def run(

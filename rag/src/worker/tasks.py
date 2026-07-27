@@ -3,21 +3,32 @@ import logging
 import uuid
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypedDict
 
 import httpx
 from arq.connections import RedisSettings
 
-from clients.docling import DoclingClient
-from clients.embedder import EmbedderClient
-from clients.qdrant import QdrantClient
-from clients.webhook import WebhookClient
+from clients import DoclingClient, EmbedderClient, QdrantClient, WebhookClient
 from config import load_config
 from enums import JobState
-from models.worker import WorkerContext
+from models import AppConfig
 from pipeline import ingest as ingest_pipeline
 
 _cfg = load_config()
+
+
+class WorkerContext(TypedDict):
+    """
+    Partial view of the worker context, covering the keys this app populates and reads.
+    """
+
+    http: httpx.AsyncClient
+    docling: DoclingClient
+    embedder: EmbedderClient
+    qdrant: QdrantClient
+    webhook: WebhookClient
+    cfg: AppConfig
+    job_id: str
 
 
 async def startup(ctx: WorkerContext) -> None:
