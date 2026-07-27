@@ -22,6 +22,12 @@ class UnsupportedFormatError(ResourceError):
     """
 
 
+class EmptyDocumentError(ResourceError):
+    """
+    An input the converter produced no text for.
+    """
+
+
 class UpstreamError(RagError):
     """
     An upstream service could not be reached, failed, or timed out.

@@ -1,5 +1,3 @@
-from typing import Any
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -12,4 +10,3 @@ class Chunk(BaseModel):
 
     text: str
     headings: list[str] = Field(default_factory=list)
-    meta: dict[str, Any] = Field(default_factory=dict)

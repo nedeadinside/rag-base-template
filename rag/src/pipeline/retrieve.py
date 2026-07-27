@@ -1,7 +1,7 @@
 from qdrant_client import models
 
 from clients import EmbedderClient, QdrantClient, RerankerClient
-from models import RetrievedChunk
+from models import ChunkPayload, RetrievedChunk
 
 
 async def run(
@@ -35,15 +35,14 @@ async def run(
     hits = await qdrant.search(collection, qvec, limit=top_k, query_filter=query_filter)
     if not hits:
         return []
-    payloads = [hit.payload or {} for hit in hits]
-    docs = [payload.get("text", "") for payload in payloads]
-    ranked = await reranker.rerank(query, docs, top_n=top_n)
+    payloads = [ChunkPayload.model_validate(hit.payload or {}) for hit in hits]
+    ranked = await reranker.rerank(query, [payload.text for payload in payloads], top_n=top_n)
     return [
         RetrievedChunk(
-            text=docs[index],
+            text=payloads[index].text,
             score=score,
-            document_id=payloads[index].get("document_id"),
-            metadata=payloads[index],
+            document_id=payloads[index].document_id,
+            metadata=payloads[index].metadata,
         )
         for index, score in ranked
     ]

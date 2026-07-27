@@ -11,5 +11,5 @@ from .config import (
     RetrieveConfig,
     WebhookConfig,
 )
-from .pipeline import IngestResult, RetrievedChunk
+from .pipeline import ChunkPayload, IngestResult, RetrievedChunk
 from .worker import JobStatusReport

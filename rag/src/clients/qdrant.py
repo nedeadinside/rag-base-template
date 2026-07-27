@@ -1,5 +1,3 @@
-from typing import Any
-
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.common.client_exceptions import QdrantException
 from qdrant_client.http.exceptions import ApiException
@@ -57,21 +55,20 @@ class QdrantClient:
         except (ApiException, QdrantException) as e:
             raise QdrantError(f"ensure collection failed: {e}") from e
 
-    async def upsert(self, collection: str, points: list[dict[str, Any]]) -> None:
+    async def upsert(self, collection: str, points: list[models.PointStruct]) -> None:
         """
         Upsert points into the collection in batches, waiting for each batch to persist.
 
         :param collection: Name of the target collection.
-        :param points: Point dicts with id, vector, and payload.
+        :param points: Points to write, with id, vector, and payload.
         :raises QdrantError: If the store is unreachable or the request fails.
         """
         batch_size = self._config.upsert_batch_size
         try:
             for start in range(0, len(points), batch_size):
-                batch = points[start : start + batch_size]
                 await self._client.upsert(
                     collection,
-                    points=[models.PointStruct(**point) for point in batch],
+                    points=points[start : start + batch_size],
                     wait=True,
                 )
         except (ApiException, QdrantException) as e:

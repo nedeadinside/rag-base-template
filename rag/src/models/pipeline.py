@@ -1,6 +1,17 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class ChunkPayload(BaseModel):
+    """
+    Payload stored on every Qdrant point and read back on retrieval.
+    """
+
+    document_id: str
+    text: str
+    headings: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class IngestResult(BaseModel):
@@ -20,5 +31,5 @@ class RetrievedChunk(BaseModel):
 
     text: str
     score: float
-    document_id: str | None
+    document_id: str
     metadata: dict[str, Any]

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import uuid
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, ClassVar, TypedDict
@@ -79,13 +78,11 @@ async def ingest(
     cfg = ctx["cfg"]
     job_id = ctx["job_id"]
     webhook = ctx["webhook"]
-    document_id = str(uuid.uuid5(uuid.NAMESPACE_OID, job_id))
     try:
         result = await ingest_pipeline.run(
             file_path,
             collection,
             metadata,
-            document_id=document_id,
             docling=ctx["docling"],
             embedder=ctx["embedder"],
             qdrant=ctx["qdrant"],
