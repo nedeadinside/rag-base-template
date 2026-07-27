@@ -14,9 +14,8 @@ from clients.qdrant import QdrantClient
 from clients.webhook import WebhookClient
 from config import load_config
 from enums import JobState
+from models.worker import WorkerContext
 from pipeline import ingest as ingest_pipeline
-
-from .context import WorkerContext
 
 _cfg = load_config()
 

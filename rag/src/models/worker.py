@@ -1,12 +1,15 @@
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import httpx
+from pydantic import BaseModel
 
 from clients.docling import DoclingClient
 from clients.embedder import EmbedderClient
 from clients.qdrant import QdrantClient
 from clients.webhook import WebhookClient
-from config.models import AppConfig
+from enums import JobState
+
+from .config import AppConfig
 
 
 class WorkerContext(TypedDict):
@@ -21,3 +24,14 @@ class WorkerContext(TypedDict):
     webhook: WebhookClient
     cfg: AppConfig
     job_id: str
+
+
+class JobStatusReport(BaseModel):
+    """
+    Observable state of one ingestion job.
+    """
+
+    job_id: str
+    status: JobState
+    result: Any | None = None
+    error: str | None = None

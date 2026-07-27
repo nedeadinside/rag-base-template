@@ -1,21 +1,10 @@
 import uuid
 from typing import Any
 
-from pydantic import BaseModel
-
 from clients.docling import DoclingClient
 from clients.embedder import EmbedderClient
 from clients.qdrant import QdrantClient
-
-
-class IngestResult(BaseModel):
-    """
-    Outcome of an ingestion run.
-    """
-
-    document_id: str
-    collection: str
-    chunks: int
+from models.pipeline import IngestResult
 
 
 async def run(

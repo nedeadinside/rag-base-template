@@ -3,7 +3,7 @@ from typing import Any
 
 import httpx
 
-from config.models import WebhookConfig
+from models.config import WebhookConfig
 
 _log = logging.getLogger(__name__)
 

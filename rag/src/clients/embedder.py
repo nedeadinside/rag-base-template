@@ -1,7 +1,7 @@
 import httpx
 
-from config.models import EmbedderConfig
 from errors import EmbedderError
+from models.config import EmbedderConfig
 
 
 class EmbedderClient:

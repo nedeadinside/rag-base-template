@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from .models import AppConfig
+from models.config import AppConfig
 
 
 @lru_cache
@@ -11,6 +11,3 @@ def load_config() -> AppConfig:
     :return: The validated settings.
     """
     return AppConfig()
-
-
-__all__ = ["AppConfig", "load_config"]

@@ -1,10 +1,8 @@
-from typing import Any
-
 from arq.jobs import Job, JobStatus
-from pydantic import BaseModel
 from redis.asyncio import Redis
 
 from enums import JobState
+from models.worker import JobStatusReport
 
 _PENDING_STATES = {
     JobStatus.deferred: JobState.QUEUED,
@@ -12,17 +10,6 @@ _PENDING_STATES = {
     JobStatus.in_progress: JobState.IN_PROGRESS,
     JobStatus.not_found: JobState.NOT_FOUND,
 }
-
-
-class JobStatusReport(BaseModel):
-    """
-    Observable state of one ingestion job.
-    """
-
-    job_id: str
-    status: JobState
-    result: Any | None = None
-    error: str | None = None
 
 
 async def get_status(redis: Redis, job_id: str) -> JobStatusReport:

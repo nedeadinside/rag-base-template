@@ -1,22 +1,9 @@
-from typing import Any
-
-from pydantic import BaseModel
 from qdrant_client import models
 
 from clients.embedder import EmbedderClient
 from clients.qdrant import QdrantClient
 from clients.reranker import RerankerClient
-
-
-class RetrievedChunk(BaseModel):
-    """
-    A single reranked chunk returned from retrieval.
-    """
-
-    text: str
-    score: float
-    document_id: str | None
-    metadata: dict[str, Any]
+from models.pipeline import RetrievedChunk
 
 
 async def run(
