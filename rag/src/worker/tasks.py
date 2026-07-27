@@ -7,11 +7,11 @@ from typing import Any, ClassVar, TypedDict
 import httpx
 from arq.connections import RedisSettings
 
-from clients import DoclingClient, EmbedderClient, QdrantClient, WebhookClient
-from config import load_config
+from clients import DoclingClient, EmbedderClient, LLMClient, QdrantClient, RerankerClient, WebhookClient
+from config import load_config, load_prompts
 from enums import JobState
 from models import AppConfig
-from pipeline import ingest as ingest_pipeline
+from pipeline import Pipeline
 
 _cfg = load_config()
 
@@ -22,17 +22,16 @@ class WorkerContext(TypedDict):
     """
 
     http: httpx.AsyncClient
-    docling: DoclingClient
-    embedder: EmbedderClient
     qdrant: QdrantClient
     webhook: WebhookClient
+    pipeline: Pipeline
     cfg: AppConfig
     job_id: str
 
 
 async def startup(ctx: WorkerContext) -> None:
     """
-    Open the shared HTTP client and build the upstream clients once per worker.
+    Open the shared HTTP client and build the pipeline once per worker.
 
     :param ctx: The worker context to populate.
     """
@@ -42,10 +41,17 @@ async def startup(ctx: WorkerContext) -> None:
     qdrant = QdrantClient(cfg.qdrant)
     ctx["http"] = http
     ctx["cfg"] = cfg
-    ctx["docling"] = DoclingClient(cfg.docling, http)
-    ctx["embedder"] = EmbedderClient(cfg.embedder, http)
     ctx["qdrant"] = qdrant
     ctx["webhook"] = WebhookClient(cfg.webhook, http)
+    ctx["pipeline"] = Pipeline(
+        cfg,
+        load_prompts(),
+        docling=DoclingClient(cfg.docling, http),
+        embedder=EmbedderClient(cfg.embedder, http),
+        qdrant=qdrant,
+        reranker=RerankerClient(cfg.reranker, http),
+        llm=LLMClient(cfg.llm),
+    )
 
 
 async def shutdown(ctx: WorkerContext) -> None:
@@ -75,20 +81,10 @@ async def ingest(
     :param metadata: Caller-supplied metadata copied onto every point payload.
     :return: The ingestion result, serialized for the ARQ result store.
     """
-    cfg = ctx["cfg"]
     job_id = ctx["job_id"]
     webhook = ctx["webhook"]
     try:
-        result = await ingest_pipeline.run(
-            file_path,
-            collection,
-            metadata,
-            docling=ctx["docling"],
-            embedder=ctx["embedder"],
-            qdrant=ctx["qdrant"],
-            chunk_size=cfg.ingest.chunk_size,
-            passage_prefix=cfg.embedder.passage_prefix,
-        )
+        result = await ctx["pipeline"].ingest(file_path, collection, metadata)
     except Exception as e:
         if webhook_url is not None:
             await webhook.notify(webhook_url, {"job_id": job_id, "status": JobState.FAILED, "error": str(e)})
