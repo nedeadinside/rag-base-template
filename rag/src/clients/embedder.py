@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 
 from errors import EmbedderError
@@ -19,9 +21,36 @@ class EmbedderClient:
         self._config = config
         self._client = client
 
+    async def _embed_batch(self, batch: list[str], headers: dict[str, str]) -> list[list[float]]:
+        """
+        Embed one batch of texts in a single request.
+
+        :param batch: The texts to embed, at most one configured batch size worth.
+        :param headers: Request headers carrying the optional api key.
+        :raises EmbedderError: If the service is unreachable or returns an unusable response.
+        :return: One embedding vector per input text, in order.
+        """
+        try:
+            response = await self._client.post(
+                f"{self._config.url}/embeddings",
+                headers=headers,
+                json={"model": self._config.model, "input": batch},
+                timeout=self._config.timeout_sec,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            data = sorted(payload["data"], key=lambda item: item["index"])
+            return [item["embedding"] for item in data]
+        except httpx.HTTPStatusError as e:
+            raise EmbedderError(f"embed request failed: HTTP {e.response.status_code}") from e
+        except httpx.HTTPError as e:
+            raise EmbedderError(f"embed request failed: {type(e).__name__}") from e
+        except (KeyError, ValueError) as e:
+            raise EmbedderError(f"unparseable embed response: {type(e).__name__}") from e
+
     async def embed(self, texts: list[str], *, prefix: str | None = None) -> list[list[float]]:
         """
-        Embed a list of texts, batching by the configured batch size.
+        Embed a list of texts, splitting them into batches sent concurrently.
 
         :param texts: The texts to embed.
         :param prefix: Optional prefix prepended to every text before embedding.
@@ -33,22 +62,13 @@ class EmbedderClient:
         headers = {}
         if self._config.api_key is not None:
             headers["Authorization"] = f"Bearer {self._config.api_key.get_secret_value()}"
-        vectors: list[list[float]] = []
-        for start in range(0, len(texts), self._config.batch_size):
-            batch = texts[start : start + self._config.batch_size]
-            try:
-                response = await self._client.post(
-                    f"{self._config.url}/embeddings",
-                    headers=headers,
-                    json={"model": self._config.model, "input": batch},
-                    timeout=self._config.timeout_sec,
-                )
-                response.raise_for_status()
-                payload = response.json()
-                data = sorted(payload["data"], key=lambda item: item["index"])
-                vectors.extend(item["embedding"] for item in data)
-            except httpx.HTTPError as e:
-                raise EmbedderError(f"embed request failed: {e}") from e
-            except (KeyError, ValueError) as e:
-                raise EmbedderError(f"unparseable embed response: {e}") from e
-        return vectors
+        semaphore = asyncio.Semaphore(self._config.max_concurrency)
+
+        async def embed_batch(batch: list[str]) -> list[list[float]]:
+            async with semaphore:
+                return await self._embed_batch(batch, headers)
+
+        size = self._config.batch_size
+        batches = [texts[start : start + size] for start in range(0, len(texts), size)]
+        results = await asyncio.gather(*(embed_batch(batch) for batch in batches))
+        return [vector for result in results for vector in result]

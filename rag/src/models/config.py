@@ -57,6 +57,7 @@ class EmbedderConfig(BaseModel):
     model: str
     timeout_sec: int
     batch_size: int
+    max_concurrency: int
     query_prefix: str | None = None
     passage_prefix: str | None = None
     api_key: SecretStr | None = None

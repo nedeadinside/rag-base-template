@@ -24,6 +24,7 @@ rag:
     model: intfloat/multilingual-e5-large
     timeout_sec: 60
     batch_size: 32
+    max_concurrency: 4
     query_prefix: query
     passage_prefix: passage
 
