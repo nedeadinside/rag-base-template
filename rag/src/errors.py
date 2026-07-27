@@ -56,3 +56,9 @@ class RerankerError(UpstreamError):
     """
     The reranking service failed.
     """
+
+
+class LLMError(UpstreamError):
+    """
+    The answer generation service failed.
+    """
