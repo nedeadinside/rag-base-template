@@ -84,6 +84,19 @@ class RerankerConfig(BaseModel):
     api_key: SecretStr | None = None
 
 
+class LLMConfig(BaseModel):
+    """
+    Settings for the answer generation service.
+    """
+
+    url: str
+    model: str
+    timeout_sec: int
+    temperature: float
+    max_tokens: int
+    api_key: SecretStr | None = None
+
+
 class RetrieveConfig(BaseModel):
     """
     Retrieval pipeline settings.
@@ -115,6 +128,7 @@ class AppConfig(BaseSettings):
         protected_namespaces=(),
     )
 
+    prompts_path: str
     queue: QueueConfig
     logging: LoggingConfig
     ingest: IngestConfig
@@ -122,6 +136,7 @@ class AppConfig(BaseSettings):
     embedder: EmbedderConfig
     qdrant: QdrantConfig
     reranker: RerankerConfig
+    llm: LLMConfig
     retrieve: RetrieveConfig
     webhook: WebhookConfig
 

@@ -1,4 +1,6 @@
 rag:
+  prompts_path: /app/prompts.yaml
+
   queue:
     redis_url: redis://rag-redis:6379/0
     job_timeout: 3600
@@ -34,6 +36,13 @@ rag:
     url: http://reranker:8000/v1
     model: BAAI/bge-reranker-v2-m3
     timeout_sec: 60
+
+  llm:
+    url: http://llm:8000/v1
+    model: Qwen/Qwen3-8B
+    timeout_sec: 120
+    temperature: 0.2
+    max_tokens: 1024
 
   retrieve:
     top_k: 20

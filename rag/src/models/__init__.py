@@ -4,6 +4,7 @@ from .config import (
     DoclingConfig,
     EmbedderConfig,
     IngestConfig,
+    LLMConfig,
     LoggingConfig,
     QdrantConfig,
     QueueConfig,
@@ -11,5 +12,5 @@ from .config import (
     RetrieveConfig,
     WebhookConfig,
 )
-from .pipeline import ChunkPayload, IngestResult, RetrievedChunk
+from .pipeline import Answer, ChunkPayload, IngestResult, RetrievedChunk
 from .worker import JobStatusReport

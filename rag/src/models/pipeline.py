@@ -33,3 +33,12 @@ class RetrievedChunk(BaseModel):
     score: float
     document_id: str
     metadata: dict[str, Any]
+
+
+class Answer(BaseModel):
+    """
+    Generated answer with the chunks it was grounded on.
+    """
+
+    text: str
+    sources: list[RetrievedChunk]
