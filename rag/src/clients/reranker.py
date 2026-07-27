@@ -1,11 +1,7 @@
-from typing import TYPE_CHECKING
-
 import httpx
 
+from config.models import RerankerConfig
 from errors import RerankerError
-
-if TYPE_CHECKING:
-    from config.models import RerankerConfig
 
 
 class RerankerClient:
@@ -13,7 +9,7 @@ class RerankerClient:
     Thin client over a Jina-style reranking endpoint.
     """
 
-    def __init__(self, config: "RerankerConfig", client: httpx.AsyncClient) -> None:
+    def __init__(self, config: RerankerConfig, client: httpx.AsyncClient) -> None:
         """
         Store the reranker settings and the shared HTTP client.
 

@@ -1,10 +1,9 @@
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 
-if TYPE_CHECKING:
-    from config.models import WebhookConfig
+from config.models import WebhookConfig
 
 _log = logging.getLogger(__name__)
 
@@ -14,7 +13,7 @@ class WebhookClient:
     Deliverer of job-status callbacks.
     """
 
-    def __init__(self, config: "WebhookConfig", client: httpx.AsyncClient) -> None:
+    def __init__(self, config: WebhookConfig, client: httpx.AsyncClient) -> None:
         """
         Store the webhook settings and the shared HTTP client.
 

@@ -15,11 +15,14 @@ class LogLevel(StrEnum):
 
 class JobState(StrEnum):
     """
-    Terminal outcome of an ingestion job.
+    Lifecycle state of an ingestion job.
     """
 
+    QUEUED = "queued"
+    IN_PROGRESS = "in_progress"
     SUCCESS = "success"
     FAILED = "failed"
+    NOT_FOUND = "not_found"
 
 
 class ChunkerKind(StrEnum):

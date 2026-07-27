@@ -1,11 +1,7 @@
-from typing import TYPE_CHECKING
-
 import httpx
 
+from config.models import EmbedderConfig
 from errors import EmbedderError
-
-if TYPE_CHECKING:
-    from config.models import EmbedderConfig
 
 
 class EmbedderClient:
@@ -13,7 +9,7 @@ class EmbedderClient:
     Thin client over an OpenAI-style embeddings endpoint.
     """
 
-    def __init__(self, config: "EmbedderConfig", client: httpx.AsyncClient) -> None:
+    def __init__(self, config: EmbedderConfig, client: httpx.AsyncClient) -> None:
         """
         Store the embedder settings and the shared HTTP client.
 

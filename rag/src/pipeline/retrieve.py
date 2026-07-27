@@ -1,13 +1,11 @@
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic import BaseModel
+from qdrant_client import models
 
-if TYPE_CHECKING:
-    from qdrant_client import models
-
-    from clients.embedder import EmbedderClient
-    from clients.qdrant import QdrantClient
-    from clients.reranker import RerankerClient
+from clients.embedder import EmbedderClient
+from clients.qdrant import QdrantClient
+from clients.reranker import RerankerClient
 
 
 class RetrievedChunk(BaseModel):
@@ -25,11 +23,11 @@ async def run(
     query: str,
     collection: str,
     *,
-    query_filter: "models.Filter | None" = None,
+    query_filter: models.Filter | None = None,
     query_prefix: str | None = None,
-    embedder: "EmbedderClient",
-    qdrant: "QdrantClient",
-    reranker: "RerankerClient",
+    embedder: EmbedderClient,
+    qdrant: QdrantClient,
+    reranker: RerankerClient,
     top_k: int,
     top_n: int,
 ) -> list[RetrievedChunk]:

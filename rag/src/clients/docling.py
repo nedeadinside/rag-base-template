@@ -1,26 +1,12 @@
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field
 
+from config.models import DoclingConfig
 from errors import DoclingError
 
-if TYPE_CHECKING:
-    from config.models import DoclingConfig
-
-
-class Chunk(BaseModel):
-    """
-    A single chunk returned by docling-serve.
-    """
-
-    model_config = ConfigDict(extra="ignore")
-
-    text: str
-    headings: list[str] = Field(default_factory=list)
-    meta: dict[str, Any] = Field(default_factory=dict)
+from .models import Chunk
 
 
 class DoclingClient:
@@ -28,7 +14,7 @@ class DoclingClient:
     Thin client over the docling-serve chunking API.
     """
 
-    def __init__(self, config: "DoclingConfig", client: httpx.AsyncClient) -> None:
+    def __init__(self, config: DoclingConfig, client: httpx.AsyncClient) -> None:
         """
         Store the docling settings and the shared HTTP client.
 

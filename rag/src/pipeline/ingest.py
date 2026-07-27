@@ -1,12 +1,11 @@
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic import BaseModel
 
-if TYPE_CHECKING:
-    from clients.docling import DoclingClient
-    from clients.embedder import EmbedderClient
-    from clients.qdrant import QdrantClient
+from clients.docling import DoclingClient
+from clients.embedder import EmbedderClient
+from clients.qdrant import QdrantClient
 
 
 class IngestResult(BaseModel):
@@ -25,9 +24,9 @@ async def run(
     metadata: dict[str, Any],
     *,
     document_id: str,
-    docling: "DoclingClient",
-    embedder: "EmbedderClient",
-    qdrant: "QdrantClient",
+    docling: DoclingClient,
+    embedder: EmbedderClient,
+    qdrant: QdrantClient,
     chunk_size: int,
     passage_prefix: str | None = None,
 ) -> IngestResult:

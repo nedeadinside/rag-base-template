@@ -1,13 +1,11 @@
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.common.client_exceptions import QdrantException
 from qdrant_client.http.exceptions import ApiException
 
+from config.models import QdrantConfig
 from errors import QdrantError
-
-if TYPE_CHECKING:
-    from config.models import QdrantConfig
 
 
 class QdrantClient:
@@ -15,7 +13,7 @@ class QdrantClient:
     Thin wrapper over the async Qdrant SDK client.
     """
 
-    def __init__(self, config: "QdrantConfig") -> None:
+    def __init__(self, config: QdrantConfig) -> None:
         """
         Build the underlying async Qdrant client from the settings.
 
@@ -85,7 +83,7 @@ class QdrantClient:
         vector: list[float],
         *,
         limit: int,
-        query_filter: "models.Filter | None" = None,
+        query_filter: models.Filter | None = None,
     ) -> list[models.ScoredPoint]:
         """
         Search the collection for the points nearest to a query vector.

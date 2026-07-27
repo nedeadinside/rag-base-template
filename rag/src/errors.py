@@ -1,10 +1,4 @@
-class ServiceError(Exception):
-    """
-    Base for every error a service raises on purpose.
-    """
-
-
-class RagError(ServiceError):
+class RagError(Exception):
     """
     Base for every error this service raises on purpose.
     """
