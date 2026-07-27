@@ -42,6 +42,4 @@ model {
   }
 
   user -> rag 'ingests documents / asks questions' 'HTTP'
-  rag -> reranker 'reranks retrieved chunks' 'HTTP'
-  rag -> llm 'generates answers' 'HTTP'
 }

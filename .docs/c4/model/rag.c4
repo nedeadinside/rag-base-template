@@ -6,33 +6,47 @@ model {
 
       task = component 'Ingest Task' {
         technology 'ARQ task'
-        description 'Orchestrates one ingestion job and fires the webhook callback'
+        description 'Orchestrates one ingestion job, removes the spooled file and fires the webhook callback'
       }
-      pipeline = component 'Ingestion Pipeline' {
+      statusReader = component 'Job Status Reader' {
         technology 'Python'
-        description 'Chunks, embeds, and upserts a document'
+        description 'Reports the state of a job with its result or error text'
+      }
+      pipeline = component 'Pipeline' {
+        technology 'Python'
+        description 'Facade over ingestion and question answering: chunk, embed, upsert, search, rerank, generate'
       }
       doclingClient = component 'Docling Client' {
         technology 'httpx'
-        description 'Calls docling-serve for chunking'
+        description 'Calls docling-serve for conversion and chunking'
       }
       embedderClient = component 'Embedder Client' {
         technology 'httpx'
-        description 'Calls the embedding service'
+        description 'Embeds texts in concurrent batches'
       }
       qdrantClient = component 'Qdrant Client' {
+        technology 'qdrant-client SDK'
+        description 'Ensures the collection, upserts points and searches by vector'
+      }
+      rerankerClient = component 'Reranker Client' {
         technology 'httpx'
-        description 'Upserts vectors into the store'
+        description 'Reorders search candidates by relevance to the query'
+      }
+      llmClient = component 'LLM Client' {
+        technology 'langchain-openai'
+        description 'Renders the prompt template and generates the answer'
       }
       webhookClient = component 'Webhook Client' {
         technology 'httpx'
         description 'Delivers status callbacks'
       }
 
-      task -> pipeline 'runs work via' 'in-process call'
+      task -> pipeline 'runs ingestion via' 'in-process call'
       pipeline -> doclingClient 'chunks document via'
-      pipeline -> embedderClient 'embeds chunks via'
-      pipeline -> qdrantClient 'upserts vectors via'
+      pipeline -> embedderClient 'embeds chunks and queries via'
+      pipeline -> qdrantClient 'upserts and searches vectors via'
+      pipeline -> rerankerClient 'reranks candidates via'
+      pipeline -> llmClient 'generates answer via'
       task -> webhookClient 'delivers callback via'
     }
 
@@ -42,9 +56,12 @@ model {
     }
 
     worker.task -[async]-> broker 'consumes job / stores result' 'RESP over TCP'
-    worker.doclingClient -> docling 'POST /v1/chunk/hybrid/file' 'multipart/form-data over HTTP'
+    worker.statusReader -> broker 'reads job state and result' 'RESP over TCP'
+    worker.doclingClient -> docling 'POST /v1/chunk/{chunker}/file' 'multipart/form-data over HTTP'
     worker.embedderClient -> embedder 'POST /embeddings' 'HTTP / JSON'
-    worker.qdrantClient -> qdrant 'upserts vectors' 'HTTP / JSON'
+    worker.qdrantClient -> qdrant 'upserts and queries points' 'HTTP / JSON'
+    worker.rerankerClient -> reranker 'POST /rerank' 'HTTP / JSON'
+    worker.llmClient -> llm 'POST /chat/completions' 'HTTP / JSON'
     worker.webhookClient -[async]-> webhook 'POST job status' 'HTTP / JSON'
   }
 }

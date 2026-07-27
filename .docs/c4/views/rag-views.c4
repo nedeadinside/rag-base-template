@@ -2,14 +2,14 @@ views {
   view ragContainers of rag {
     title 'Containers - RAG Service'
     include *
-    include user, docling, embedder, qdrant, webhook
+    include user, docling, embedder, qdrant, reranker, llm, webhook
     autoLayout LeftRight
   }
 
   view ragWorkerComponents of rag.worker {
     title 'Components - Worker'
     include *
-    include rag.broker, docling, embedder, qdrant, webhook
+    include rag.broker, docling, embedder, qdrant, reranker, llm, webhook
     autoLayout LeftRight
   }
 }
