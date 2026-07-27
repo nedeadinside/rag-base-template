@@ -38,6 +38,8 @@ class LLMClient:
         """
         try:
             message = await (prompt | self._model).ainvoke(values)
+        except openai.APIStatusError as e:
+            raise LLMError(f"completion request failed: HTTP {e.status_code}") from e
         except openai.OpenAIError as e:
-            raise LLMError(f"completion request failed: {e}") from e
+            raise LLMError(f"completion request failed: {type(e).__name__}") from e
         return message.text()

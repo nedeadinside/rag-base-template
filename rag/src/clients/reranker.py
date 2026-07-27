@@ -47,9 +47,11 @@ class RerankerClient:
             response.raise_for_status()
             results = response.json()["results"]
             ranked = [(item["index"], item["relevance_score"]) for item in results]
+        except httpx.HTTPStatusError as e:
+            raise RerankerError(f"rerank request failed: HTTP {e.response.status_code}") from e
         except httpx.HTTPError as e:
-            raise RerankerError(f"rerank request failed: {e}") from e
+            raise RerankerError(f"rerank request failed: {type(e).__name__}") from e
         except (KeyError, ValueError, TypeError) as e:
-            raise RerankerError(f"unparseable rerank response: {e}") from e
+            raise RerankerError(f"unparseable rerank response: {type(e).__name__}") from e
         ranked.sort(key=lambda pair: pair[1], reverse=True)
         return ranked[:top_n]

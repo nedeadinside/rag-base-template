@@ -1,6 +1,6 @@
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.common.client_exceptions import QdrantException
-from qdrant_client.http.exceptions import ApiException
+from qdrant_client.http.exceptions import ApiException, UnexpectedResponse
 
 from errors import QdrantError
 from models import QdrantConfig
@@ -52,8 +52,10 @@ class QdrantClient:
             except (ApiException, QdrantException):
                 if not await self._client.collection_exists(collection):
                     raise
+        except UnexpectedResponse as e:
+            raise QdrantError(f"ensure collection failed: HTTP {e.status_code}") from e
         except (ApiException, QdrantException) as e:
-            raise QdrantError(f"ensure collection failed: {e}") from e
+            raise QdrantError(f"ensure collection failed: {type(e).__name__}") from e
 
     async def upsert(self, collection: str, points: list[models.PointStruct]) -> None:
         """
@@ -71,8 +73,10 @@ class QdrantClient:
                     points=points[start : start + batch_size],
                     wait=True,
                 )
+        except UnexpectedResponse as e:
+            raise QdrantError(f"upsert failed: HTTP {e.status_code}") from e
         except (ApiException, QdrantException) as e:
-            raise QdrantError(f"upsert failed: {e}") from e
+            raise QdrantError(f"upsert failed: {type(e).__name__}") from e
 
     async def search(
         self,
@@ -100,6 +104,8 @@ class QdrantClient:
                 query_filter=query_filter,
                 with_payload=True,
             )
+        except UnexpectedResponse as e:
+            raise QdrantError(f"search failed: HTTP {e.status_code}") from e
         except (ApiException, QdrantException) as e:
-            raise QdrantError(f"search failed: {e}") from e
+            raise QdrantError(f"search failed: {type(e).__name__}") from e
         return response.points

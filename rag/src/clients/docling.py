@@ -49,9 +49,11 @@ class DoclingClient:
             response.raise_for_status()
             payload = response.json()
             return [Chunk.model_validate(chunk) for chunk in payload["chunks"]]
+        except httpx.HTTPStatusError as e:
+            raise DoclingError(f"chunk request failed: HTTP {e.response.status_code}") from e
         except httpx.HTTPError as e:
-            raise DoclingError(f"chunk request failed: {e}") from e
+            raise DoclingError(f"chunk request failed: {type(e).__name__}") from e
         except (KeyError, ValueError) as e:
-            raise DoclingError(f"unparseable chunk response: {e}") from e
+            raise DoclingError(f"unparseable chunk response: {type(e).__name__}") from e
         except OSError as e:
-            raise DoclingError(f"reading document failed: {e}") from e
+            raise DoclingError(f"reading document failed: {e.strerror}") from e
