@@ -1,3 +1,4 @@
+import hashlib
 import uuid
 from pathlib import Path
 from typing import Any
@@ -58,7 +59,11 @@ class Pipeline:
         chunks = await self._docling.chunk(file_path, max_tokens=self._config.ingest.chunk_size)
         if not chunks:
             raise EmptyDocumentError(f"no text extracted from {Path(file_path).name}")
-        document_id = str(uuid.uuid5(uuid.NAMESPACE_OID, "\n".join(chunk.text for chunk in chunks)))
+        digest = hashlib.blake2b(digest_size=16)
+        for chunk in chunks:
+            digest.update(chunk.text.encode())
+            digest.update(b"\n")
+        document_id = str(uuid.UUID(bytes=digest.digest(), version=5))
         vectors = await self._embedder.embed(
             [chunk.text for chunk in chunks],
             prefix=self._config.embedder.passage_prefix,
