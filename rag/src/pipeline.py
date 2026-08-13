@@ -59,7 +59,7 @@ class Pipeline:
         :raises RagError: If the document yields no text, or chunking, embedding, or the upsert fails.
         :return: The ingestion result with the derived document id and produced chunk count.
         """
-        chunks = await self._docling.chunk(file_path, max_tokens=self._config.ingest.chunk_size)
+        chunks = await self._docling.chunk(file_path)
         if not chunks:
             raise EmptyDocumentError(f"no text extracted from {Path(file_path).name}")
         digest = hashlib.blake2b(digest_size=16)

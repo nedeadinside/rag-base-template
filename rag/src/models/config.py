@@ -35,7 +35,25 @@ class IngestConfig(BaseModel):
 
     max_upload_bytes: int
     allowed_extensions: list[str]
-    chunk_size: int
+
+
+class DoclingConvertConfig(BaseModel):
+    """
+    Document conversion flags for the docling document conversion service.
+    """
+
+    do_ocr: bool
+    pdf_heading_hierarchy: bool
+    include_images: bool
+
+
+class DoclingChunkingConfig(BaseModel):
+    """
+    Chunking flags for the docling document conversion service.
+    """
+
+    max_tokens: int
+    merge_peers: bool
 
 
 class DoclingConfig(BaseModel):
@@ -44,9 +62,32 @@ class DoclingConfig(BaseModel):
     """
 
     url: str
-    timeout_sec: int
     chunker: ChunkerKind
+    timeout_sec: int | None
+    poll_interval_sec: float
+    poll_timeout_sec: float
+    result_timeout_sec: float
+    convert: DoclingConvertConfig
+    chunking: DoclingChunkingConfig
     api_key: SecretStr | None = None
+
+    def form(self, *, tokenizer: str) -> dict[str, str]:
+        """
+        Build the multipart form fields for a chunk request.
+
+        :param tokenizer: Tokenizer name forwarded to the hybrid chunker.
+        :return: Form fields for the docling-serve chunk endpoint.
+        """
+        data = {
+            "convert_do_ocr": str(self.convert.do_ocr).lower(),
+            "convert_do_pdf_heading_hierarchy": str(self.convert.pdf_heading_hierarchy).lower(),
+            "convert_include_images": str(self.convert.include_images).lower(),
+        }
+        if self.chunker is ChunkerKind.HYBRID:
+            data["chunking_max_tokens"] = str(self.chunking.max_tokens)
+            data["chunking_merge_peers"] = str(self.chunking.merge_peers).lower()
+            data["chunking_tokenizer"] = tokenizer
+        return data
 
 
 class EmbedderConfig(BaseModel):

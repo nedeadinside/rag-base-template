@@ -47,7 +47,7 @@ async def startup(ctx: WorkerContext) -> None:
         ctx["pipeline"] = Pipeline(
             cfg,
             load_prompts(),
-            docling=DoclingClient(cfg.docling, http),
+            docling=DoclingClient(cfg.docling, cfg.embedder.model, http),
             embedder=EmbedderClient(cfg.embedder, http),
             qdrant=qdrant,
             reranker=RerankerClient(cfg.reranker, http),

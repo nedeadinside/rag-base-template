@@ -2,7 +2,9 @@ from .clients import Chunk
 from .config import (
     AppConfig,
     Bm25Config,
+    DoclingChunkingConfig,
     DoclingConfig,
+    DoclingConvertConfig,
     EmbedderConfig,
     IngestConfig,
     LLMConfig,

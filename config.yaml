@@ -3,7 +3,7 @@ rag:
 
   queue:
     redis_url: redis://rag-redis:6379/0
-    job_timeout: 3600
+    job_timeout: 21600
     concurrency: 4
 
   logging:
@@ -12,12 +12,21 @@ rag:
   ingest:
     max_upload_bytes: 52428800
     allowed_extensions: [".pdf", ".docx", ".pptx", ".xlsx", ".html", ".md", ".txt"]
-    chunk_size: 512
 
   docling:
     url: http://docling:5001
-    timeout_sec: 300
     chunker: hybrid
+    timeout_sec: null
+    poll_interval_sec: 1.0
+    poll_timeout_sec: 30
+    result_timeout_sec: 120
+    convert:
+      do_ocr: false
+      pdf_heading_hierarchy: true
+      include_images: false
+    chunking:
+      max_tokens: 512
+      merge_peers: true
 
   embedder:
     url: http://embedder:8000/v1
