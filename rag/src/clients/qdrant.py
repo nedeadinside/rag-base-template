@@ -2,8 +2,8 @@ from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.common.client_exceptions import QdrantException
 from qdrant_client.http.exceptions import ApiException, UnexpectedResponse
 
-from errors import QdrantError
-from models import QdrantConfig
+from src.errors import QdrantError
+from src.models import QdrantConfig
 
 
 class QdrantClient:
@@ -32,22 +32,33 @@ class QdrantClient:
         Ensure the collection exists with the expected schema, creating it when missing.
 
         :param collection: Name of the target collection.
-        :param vector_size: Dimensionality the collection vectors must have.
-        :raises QdrantError: If the store is unreachable, the schema does not match, or the request fails.
+        :param vector_size: Dimensionality the collection dense vectors must have.
+        :raises QdrantError: If the store is unreachable, the schema is incompatible, or the request fails.
         """
         try:
             if await self._client.collection_exists(collection):
                 info = await self._client.get_collection(collection)
                 vectors = info.config.params.vectors
-                if not isinstance(vectors, models.VectorParams):
-                    raise QdrantError(f"collection {collection} does not use a single unnamed vector")
-                if vectors.size != vector_size:
-                    raise QdrantError(f"collection {collection} vector size {vectors.size} != {vector_size}")
+                if not isinstance(vectors, dict) or self._config.dense_vector not in vectors:
+                    raise QdrantError(
+                        f"collection {collection} uses an incompatible schema "
+                        f"(expected named vector {self._config.dense_vector!r}); reindex it"
+                    )
+                dense = vectors[self._config.dense_vector]
+                if dense.size != vector_size:
+                    raise QdrantError(f"collection {collection} vector size {dense.size} != {vector_size}")
                 return
             try:
                 await self._client.create_collection(
                     collection,
-                    vectors_config=models.VectorParams(size=vector_size, distance=models.Distance.COSINE),
+                    vectors_config={
+                        self._config.dense_vector: models.VectorParams(
+                            size=vector_size, distance=models.Distance.COSINE
+                        )
+                    },
+                    sparse_vectors_config={
+                        self._config.sparse_vector: models.SparseVectorParams(modifier=models.Modifier.IDF)
+                    },
                 )
             except (ApiException, QdrantException):
                 if not await self._client.collection_exists(collection):
@@ -105,26 +116,44 @@ class QdrantClient:
         self,
         collection: str,
         vector: list[float],
+        query_text: str,
         *,
         limit: int,
+        prefetch_limit: int,
         query_filter: models.Filter | None = None,
     ) -> list[models.ScoredPoint]:
         """
-        Search the collection for the points nearest to a query vector.
+        Search the collection with dense and BM25 sparse prefetches merged by reciprocal rank fusion.
 
         :param collection: Name of the target collection.
-        :param vector: Query embedding vector.
-        :param limit: Maximum number of hits to return.
-        :param query_filter: Optional Qdrant filter applied to the search.
+        :param vector: Query embedding vector for the dense prefetch.
+        :param query_text: Original query text, scored server-side by BM25 for the sparse prefetch.
+        :param limit: Maximum number of fused hits to return.
+        :param prefetch_limit: Maximum number of hits each prefetch retrieves before fusion.
+        :param query_filter: Optional Qdrant filter applied to both prefetches.
         :raises QdrantError: If the store is unreachable or the request fails.
         :return: Scored points with id, score, and payload.
         """
+        prefetch = [
+            models.Prefetch(
+                query=vector,
+                using=self._config.dense_vector,
+                limit=prefetch_limit,
+                filter=query_filter,
+            ),
+            models.Prefetch(
+                query=self._config.bm25.document(query_text),
+                using=self._config.sparse_vector,
+                limit=prefetch_limit,
+                filter=query_filter,
+            ),
+        ]
         try:
             response = await self._client.query_points(
                 collection,
-                query=vector,
+                prefetch=prefetch,
+                query=models.FusionQuery(fusion=models.Fusion.RRF),
                 limit=limit,
-                query_filter=query_filter,
                 with_payload=True,
             )
         except UnexpectedResponse as e:

@@ -2,8 +2,8 @@ import asyncio
 
 import httpx
 
-from errors import EmbedderError
-from models import EmbedderConfig
+from src.errors import EmbedderError
+from src.models import EmbedderConfig
 
 
 class EmbedderClient:

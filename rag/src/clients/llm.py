@@ -1,10 +1,15 @@
+from typing import Any, TypeVar
+
+import httpx
 import openai
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
+from pydantic import BaseModel, SecretStr
 
-from errors import LLMError
-from models import LLMConfig
+from src.errors import LLMError
+from src.models import LLMConfig
+
+BaseModelT = TypeVar("BaseModelT", bound=BaseModel)
 
 
 class LLMClient:
@@ -12,11 +17,12 @@ class LLMClient:
     Thin client over an OpenAI-style chat completions endpoint.
     """
 
-    def __init__(self, config: LLMConfig) -> None:
+    def __init__(self, config: LLMConfig, client: httpx.AsyncClient) -> None:
         """
-        Build the chat model from the generation settings.
+        Build the chat model from the generation settings and the shared HTTP client.
 
         :param config: Answer generation service settings.
+        :param client: Shared async HTTP client.
         """
         self._model = ChatOpenAI(
             base_url=config.url,
@@ -25,6 +31,7 @@ class LLMClient:
             temperature=config.temperature,
             max_tokens=config.max_tokens,
             timeout=config.timeout_sec,
+            http_async_client=client,
         )
 
     async def complete(self, prompt: ChatPromptTemplate, values: dict[str, str]) -> str:
@@ -43,3 +50,23 @@ class LLMClient:
         except openai.OpenAIError as e:
             raise LLMError(f"completion request failed: {type(e).__name__}") from e
         return message.content
+
+    async def complete_structured(
+        self, prompt: ChatPromptTemplate, values: dict[str, Any], schema: type[BaseModelT]
+    ) -> BaseModelT:
+        """
+        Render a prompt template and complete it with a schema-constrained response.
+
+        :param prompt: The prompt template to render.
+        :param values: Values for the template placeholders.
+        :param schema: The pydantic model the response is parsed into.
+        :raises LLMError: If the service is unreachable or returns an unusable response.
+        :return: The parsed structured response.
+        """
+        chain = prompt | self._model.with_structured_output(schema)
+        try:
+            return await chain.ainvoke(values)
+        except openai.APIStatusError as e:
+            raise LLMError(f"completion request failed: HTTP {e.status_code}") from e
+        except openai.OpenAIError as e:
+            raise LLMError(f"completion request failed: {type(e).__name__}") from e

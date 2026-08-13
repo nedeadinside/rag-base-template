@@ -1,8 +1,8 @@
 from arq.jobs import Job, JobStatus
 from redis.asyncio import Redis
 
-from enums import JobState
-from models import JobStatusReport
+from src.enums import JobState
+from src.models import JobStatusReport
 
 _PENDING_STATES = {
     JobStatus.deferred: JobState.QUEUED,

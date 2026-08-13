@@ -7,11 +7,11 @@ from typing import Any, ClassVar, TypedDict
 import httpx
 from arq.connections import RedisSettings
 
-from clients import DoclingClient, EmbedderClient, LLMClient, QdrantClient, RerankerClient, WebhookClient
-from config import load_config, load_prompts
-from enums import JobState
-from models import AppConfig
-from pipeline import Pipeline
+from src.clients import DoclingClient, EmbedderClient, LLMClient, QdrantClient, RerankerClient, WebhookClient
+from src.config import load_config, load_prompts
+from src.enums import JobState
+from src.models import AppConfig
+from src.pipeline import Pipeline
 
 _cfg = load_config()
 
@@ -47,11 +47,11 @@ async def startup(ctx: WorkerContext) -> None:
         ctx["pipeline"] = Pipeline(
             cfg,
             load_prompts(),
-            docling=DoclingClient(cfg.docling, http),
+            docling=DoclingClient(cfg.docling, cfg.embedder.model, http),
             embedder=EmbedderClient(cfg.embedder, http),
             qdrant=qdrant,
             reranker=RerankerClient(cfg.reranker, http),
-            llm=LLMClient(cfg.llm),
+            llm=LLMClient(cfg.llm, http),
         )
     except Exception:
         await qdrant.close()

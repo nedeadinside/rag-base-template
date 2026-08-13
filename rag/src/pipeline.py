@@ -7,11 +7,13 @@ from typing import Any
 from langchain_core.prompts import ChatPromptTemplate
 from qdrant_client import models as qdrant_models
 
-from clients import DoclingClient, EmbedderClient, LLMClient, QdrantClient, RerankerClient
-from errors import EmptyDocumentError, QdrantError
-from models import Answer, AppConfig, ChunkPayload, IngestResult, RetrievedChunk
+from src.clients import DoclingClient, EmbedderClient, LLMClient, QdrantClient, RerankerClient
+from src.errors import EmptyDocumentError, QdrantError
+from src.models import Answer, AppConfig, ChunkPayload, IngestResult, RetrievedChunk, VerifierOutput
 
 logger = logging.getLogger(__name__)
+
+INSUFFICIENT_MESSAGE = "There is not enough information to answer this question."
 
 
 class Pipeline:
@@ -59,7 +61,7 @@ class Pipeline:
         :raises RagError: If the document yields no text, or chunking, embedding, or the upsert fails.
         :return: The ingestion result with the derived document id and produced chunk count.
         """
-        chunks = await self._docling.chunk(file_path, max_tokens=self._config.ingest.chunk_size)
+        chunks = await self._docling.chunk(file_path)
         if not chunks:
             raise EmptyDocumentError(f"no text extracted from {Path(file_path).name}")
         digest = hashlib.blake2b(digest_size=16)
@@ -75,7 +77,10 @@ class Pipeline:
         points = [
             qdrant_models.PointStruct(
                 id=str(uuid.uuid5(uuid.UUID(document_id), str(i))),
-                vector=vector,
+                vector={
+                    self._config.qdrant.dense_vector: vector,
+                    self._config.qdrant.sparse_vector: self._config.qdrant.bm25.document(chunk.text),
+                },
                 payload=ChunkPayload(
                     document_id=document_id,
                     text=chunk.text,
@@ -115,7 +120,9 @@ class Pipeline:
         hits = await self._qdrant.search(
             collection,
             qvec,
+            query,
             limit=self._config.retrieve.top_k,
+            prefetch_limit=self._config.retrieve.top_k * self._config.retrieve.prefetch_multiplier,
             query_filter=query_filter,
         )
         if not hits:
@@ -128,13 +135,28 @@ class Pipeline:
         )
         return [
             RetrievedChunk(
-                text=payloads[index].text,
+                text="\n".join([*payloads[index].headings, payloads[index].text]),
                 score=score,
                 document_id=payloads[index].document_id,
                 metadata=payloads[index].metadata,
             )
             for index, score in ranked
         ]
+
+    async def verify(self, query: str, chunks: list[RetrievedChunk]) -> bool:
+        """
+        Ask the LLM whether the retrieved chunks contain enough information to answer the query.
+
+        :param query: The natural-language query.
+        :param chunks: The retrieved chunks to check.
+        :raises RagError: If the verification request fails.
+        :return: True if the chunks contain a direct and complete answer.
+        """
+        context = "\n---\n".join(chunk.text for chunk in chunks)
+        result = await self._llm.complete_structured(
+            self._prompts["verify"], {"query": query, "chunks": context}, VerifierOutput
+        )
+        return result.can_answer
 
     async def generate(self, query: str, chunks: list[RetrievedChunk]) -> Answer:
         """
@@ -157,13 +179,20 @@ class Pipeline:
         query_filter: qdrant_models.Filter | None = None,
     ) -> Answer:
         """
-        Answer a query end to end: retrieve the grounding chunks, then generate over them.
+        Answer a query end to end: retrieve, verify, then generate over the grounding chunks.
+
+        Returns an honest "not enough information" answer instead of generating when no chunks
+        are retrieved, or when verification is enabled and the chunks are judged insufficient.
 
         :param query: The natural-language query.
         :param collection: Target Qdrant collection.
         :param query_filter: Optional Qdrant filter applied to the search.
-        :raises RagError: If retrieval or generation fails.
+        :raises RagError: If retrieval, verification, or generation fails.
         :return: The generated answer with the chunks it was grounded on.
         """
         chunks = await self.retrieve(query, collection, query_filter=query_filter)
+        if not chunks:
+            return Answer(text=INSUFFICIENT_MESSAGE, sources=[])
+        if self._config.retrieve.verify and not await self.verify(query, chunks):
+            return Answer(text=INSUFFICIENT_MESSAGE, sources=[])
         return await self.generate(query, chunks)
