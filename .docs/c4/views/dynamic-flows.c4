@@ -5,11 +5,13 @@ views {
     rag.worker.task -> rag.broker 'picks up job'
     rag.worker.task -> rag.worker.pipeline 'ingest(file, collection, metadata)'
     rag.worker.pipeline -> rag.worker.doclingClient 'chunk(file)'
-    rag.worker.doclingClient -> docling 'POST /v1/chunk/{chunker}/file'
+    rag.worker.doclingClient -> docling 'POST /v1/chunk/{chunker}/file/async'
+    rag.worker.doclingClient -> docling 'GET /v1/status/poll/{task_id}, until success'
+    rag.worker.doclingClient -> docling 'GET /v1/result/{task_id}'
     rag.worker.pipeline -> rag.worker.embedderClient 'embed(chunk texts)'
     rag.worker.embedderClient -> embedder 'POST /embeddings, batches in parallel'
     rag.worker.pipeline -> rag.worker.qdrantClient 'ensure_collection(size) then upsert(points)'
-    rag.worker.qdrantClient -> qdrant 'creates collection, writes points'
+    rag.worker.qdrantClient -> qdrant 'creates dense + sparse collection, writes points'
     rag.worker.task -> rag.worker.webhookClient 'notify(status)'
     rag.worker.webhookClient -> webhook 'POST job status'
 
@@ -21,11 +23,13 @@ views {
 
     rag.worker.pipeline -> rag.worker.embedderClient 'embed(query)'
     rag.worker.embedderClient -> embedder 'POST /embeddings'
-    rag.worker.pipeline -> rag.worker.qdrantClient 'search(vector, top_k)'
-    rag.worker.qdrantClient -> qdrant 'queries nearest points'
+    rag.worker.pipeline -> rag.worker.qdrantClient 'search(vector, query text, top_k)'
+    rag.worker.qdrantClient -> qdrant 'dense and BM25 prefetches, fused by RRF'
     rag.worker.pipeline -> rag.worker.rerankerClient 'rerank(query, candidates, top_n)'
     rag.worker.rerankerClient -> reranker 'POST /rerank'
-    rag.worker.pipeline -> rag.worker.llmClient 'complete(answer prompt, context)'
+    rag.worker.pipeline -> rag.worker.llmClient 'complete_structured(verify prompt, chunks)'
+    rag.worker.llmClient -> llm 'POST /chat/completions, can_answer verdict'
+    rag.worker.pipeline -> rag.worker.llmClient 'complete(answer prompt, context), only if can_answer'
     rag.worker.llmClient -> llm 'POST /chat/completions'
 
     autoLayout LeftRight
