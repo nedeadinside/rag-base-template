@@ -33,5 +33,7 @@ class WebhookClient:
         try:
             response = await self._client.post(url, json=payload, timeout=self._config.timeout_sec)
             response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            _log.warning("webhook delivery to %s failed: HTTP %s", url, e.response.status_code)
         except (httpx.HTTPError, httpx.InvalidURL) as e:
             _log.warning("webhook delivery to %s failed: %s", url, e)
