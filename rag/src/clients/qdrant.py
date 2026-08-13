@@ -2,8 +2,8 @@ from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.common.client_exceptions import QdrantException
 from qdrant_client.http.exceptions import ApiException, UnexpectedResponse
 
-from errors import QdrantError
-from models import QdrantConfig
+from src.errors import QdrantError
+from src.models import QdrantConfig
 
 
 class QdrantClient:

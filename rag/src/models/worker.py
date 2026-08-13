@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from enums import JobState
+from src.enums import JobState
 
 
 class JobStatusReport(BaseModel):

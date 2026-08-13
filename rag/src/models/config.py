@@ -6,7 +6,7 @@ from pydantic_settings import (
     YamlConfigSettingsSource,
 )
 
-from enums import ChunkerKind, LogLevel
+from src.enums import ChunkerKind, LogLevel
 
 
 class QueueConfig(BaseModel):

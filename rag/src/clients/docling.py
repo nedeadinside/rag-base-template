@@ -3,8 +3,8 @@ from pathlib import Path
 
 import httpx
 
-from errors import DoclingError
-from models import Chunk, DoclingConfig
+from src.errors import DoclingError
+from src.models import Chunk, DoclingConfig
 
 
 class DoclingClient:

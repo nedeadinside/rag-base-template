@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 from langchain_core.prompts import ChatPromptTemplate
 
-from models import AppConfig
+from src.models import AppConfig
 
 
 @lru_cache

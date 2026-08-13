@@ -3,8 +3,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
-from errors import LLMError
-from models import LLMConfig
+from src.errors import LLMError
+from src.models import LLMConfig
 
 
 class LLMClient:

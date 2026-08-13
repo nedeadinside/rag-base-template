@@ -7,9 +7,9 @@ from typing import Any
 from langchain_core.prompts import ChatPromptTemplate
 from qdrant_client import models as qdrant_models
 
-from clients import DoclingClient, EmbedderClient, LLMClient, QdrantClient, RerankerClient
-from errors import EmptyDocumentError, QdrantError
-from models import Answer, AppConfig, ChunkPayload, IngestResult, RetrievedChunk
+from src.clients import DoclingClient, EmbedderClient, LLMClient, QdrantClient, RerankerClient
+from src.errors import EmptyDocumentError, QdrantError
+from src.models import Answer, AppConfig, ChunkPayload, IngestResult, RetrievedChunk
 
 logger = logging.getLogger(__name__)
 
