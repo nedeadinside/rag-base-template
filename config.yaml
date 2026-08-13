@@ -32,6 +32,11 @@ rag:
     url: http://qdrant:6333
     timeout_sec: 30
     upsert_batch_size: 128
+    dense_vector: dense
+    sparse_vector: bm25
+    bm25:
+      language: english
+      tokenizer: multilingual
 
   reranker:
     url: http://reranker:8000/v1
@@ -48,6 +53,7 @@ rag:
   retrieve:
     top_k: 20
     top_n: 5
+    prefetch_multiplier: 3
 
   webhook:
     timeout_sec: 15

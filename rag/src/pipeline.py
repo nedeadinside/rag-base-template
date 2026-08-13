@@ -75,7 +75,10 @@ class Pipeline:
         points = [
             qdrant_models.PointStruct(
                 id=str(uuid.uuid5(uuid.UUID(document_id), str(i))),
-                vector=vector,
+                vector={
+                    self._config.qdrant.dense_vector: vector,
+                    self._config.qdrant.sparse_vector: self._config.qdrant.bm25.document(chunk.text),
+                },
                 payload=ChunkPayload(
                     document_id=document_id,
                     text=chunk.text,
@@ -115,7 +118,9 @@ class Pipeline:
         hits = await self._qdrant.search(
             collection,
             qvec,
+            query,
             limit=self._config.retrieve.top_k,
+            prefetch_limit=self._config.retrieve.top_k * self._config.retrieve.prefetch_multiplier,
             query_filter=query_filter,
         )
         if not hits:
