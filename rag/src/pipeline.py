@@ -9,9 +9,11 @@ from qdrant_client import models as qdrant_models
 
 from src.clients import DoclingClient, EmbedderClient, LLMClient, QdrantClient, RerankerClient
 from src.errors import EmptyDocumentError, QdrantError
-from src.models import Answer, AppConfig, ChunkPayload, IngestResult, RetrievedChunk
+from src.models import Answer, AppConfig, ChunkPayload, IngestResult, RetrievedChunk, VerifierOutput
 
 logger = logging.getLogger(__name__)
+
+INSUFFICIENT_MESSAGE = "There is not enough information to answer this question."
 
 
 class Pipeline:
@@ -141,6 +143,21 @@ class Pipeline:
             for index, score in ranked
         ]
 
+    async def verify(self, query: str, chunks: list[RetrievedChunk]) -> bool:
+        """
+        Ask the LLM whether the retrieved chunks contain enough information to answer the query.
+
+        :param query: The natural-language query.
+        :param chunks: The retrieved chunks to check.
+        :raises RagError: If the verification request fails.
+        :return: True if the chunks contain a direct and complete answer.
+        """
+        context = "\n---\n".join(chunk.text for chunk in chunks)
+        result = await self._llm.complete_structured(
+            self._prompts["verify"], {"query": query, "chunks": context}, VerifierOutput
+        )
+        return result.can_answer
+
     async def generate(self, query: str, chunks: list[RetrievedChunk]) -> Answer:
         """
         Generate an answer for a query from the chunks retrieved for it.
@@ -162,13 +179,20 @@ class Pipeline:
         query_filter: qdrant_models.Filter | None = None,
     ) -> Answer:
         """
-        Answer a query end to end: retrieve the grounding chunks, then generate over them.
+        Answer a query end to end: retrieve, verify, then generate over the grounding chunks.
+
+        Returns an honest "not enough information" answer instead of generating when no chunks
+        are retrieved, or when verification is enabled and the chunks are judged insufficient.
 
         :param query: The natural-language query.
         :param collection: Target Qdrant collection.
         :param query_filter: Optional Qdrant filter applied to the search.
-        :raises RagError: If retrieval or generation fails.
+        :raises RagError: If retrieval, verification, or generation fails.
         :return: The generated answer with the chunks it was grounded on.
         """
         chunks = await self.retrieve(query, collection, query_filter=query_filter)
+        if not chunks:
+            return Answer(text=INSUFFICIENT_MESSAGE, sources=[])
+        if self._config.retrieve.verify and not await self.verify(query, chunks):
+            return Answer(text=INSUFFICIENT_MESSAGE, sources=[])
         return await self.generate(query, chunks)

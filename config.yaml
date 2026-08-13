@@ -63,6 +63,7 @@ rag:
     top_k: 20
     top_n: 5
     prefetch_multiplier: 3
+    verify: true
 
   webhook:
     timeout_sec: 15

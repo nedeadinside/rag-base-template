@@ -42,3 +42,11 @@ class Answer(BaseModel):
 
     text: str
     sources: list[RetrievedChunk]
+
+
+class VerifierOutput(BaseModel):
+    """
+    Verdict on whether the retrieved chunks answer the question.
+    """
+
+    can_answer: bool = Field(description="True if the fragments contain a direct and complete answer.")

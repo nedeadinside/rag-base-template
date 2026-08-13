@@ -12,3 +12,22 @@ answer:
       {context}
 
       Question: {question}
+verify:
+  - role: system
+    content: |
+      You are an analyst. Your task is to carefully examine the provided fragments and
+      determine whether they contain a factual answer to the given question.
+      Rely exclusively on the provided fragments. External knowledge, guessing, and
+      assumptions are forbidden.
+      Set can_answer=true only if the fragments contain a direct, unambiguous, and complete
+      answer to the question.
+      Set can_answer=false if the fragments do not contain the answer, the topic is only
+      touched on indirectly, or there is not enough information to answer every part of the
+      question.
+  - role: user
+    content: |
+      Query:
+      {query}
+
+      Fragments:
+      {chunks}

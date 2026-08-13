@@ -173,6 +173,7 @@ class RetrieveConfig(BaseModel):
     top_k: int
     top_n: int
     prefetch_multiplier: int
+    verify: bool
 
 
 class WebhookConfig(BaseModel):
