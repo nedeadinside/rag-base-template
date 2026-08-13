@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import uuid
 from pathlib import Path
 from typing import Any
@@ -7,8 +8,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from qdrant_client import models as qdrant_models
 
 from clients import DoclingClient, EmbedderClient, LLMClient, QdrantClient, RerankerClient
-from errors import EmptyDocumentError
+from errors import EmptyDocumentError, QdrantError
 from models import Answer, AppConfig, ChunkPayload, IngestResult, RetrievedChunk
+
+logger = logging.getLogger(__name__)
 
 
 class Pipeline:
@@ -82,7 +85,14 @@ class Pipeline:
             )
             for i, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))
         ]
-        await self._qdrant.upsert(collection, points)
+        try:
+            await self._qdrant.upsert(collection, points)
+        except QdrantError:
+            try:
+                await self._qdrant.delete_document(collection, document_id)
+            except QdrantError as cleanup_error:
+                logger.warning("cleanup of document %s failed: %s", document_id, cleanup_error)
+            raise
         return IngestResult(document_id=document_id, collection=collection, chunks=len(points))
 
     async def retrieve(

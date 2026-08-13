@@ -78,6 +78,29 @@ class QdrantClient:
         except (ApiException, QdrantException) as e:
             raise QdrantError(f"upsert failed: {type(e).__name__}") from e
 
+    async def delete_document(self, collection: str, document_id: str) -> None:
+        """
+        Delete every point belonging to a document from the collection.
+
+        :param collection: Name of the target collection.
+        :param document_id: Id of the document whose points must be removed.
+        :raises QdrantError: If the store is unreachable or the request fails.
+        """
+        try:
+            await self._client.delete(
+                collection,
+                points_selector=models.FilterSelector(
+                    filter=models.Filter(
+                        must=[models.FieldCondition(key="document_id", match=models.MatchValue(value=document_id))]
+                    )
+                ),
+                wait=True,
+            )
+        except UnexpectedResponse as e:
+            raise QdrantError(f"delete document failed: HTTP {e.status_code}") from e
+        except (ApiException, QdrantException) as e:
+            raise QdrantError(f"delete document failed: {type(e).__name__}") from e
+
     async def search(
         self,
         collection: str,
