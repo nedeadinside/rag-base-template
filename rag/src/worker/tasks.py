@@ -51,7 +51,7 @@ async def startup(ctx: WorkerContext) -> None:
             embedder=EmbedderClient(cfg.embedder, http),
             qdrant=qdrant,
             reranker=RerankerClient(cfg.reranker, http),
-            llm=LLMClient(cfg.llm),
+            llm=LLMClient(cfg.llm, http),
         )
     except Exception:
         await qdrant.close()

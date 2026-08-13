@@ -128,7 +128,7 @@ class Pipeline:
         )
         return [
             RetrievedChunk(
-                text=payloads[index].text,
+                text="\n".join([*payloads[index].headings, payloads[index].text]),
                 score=score,
                 document_id=payloads[index].document_id,
                 metadata=payloads[index].metadata,

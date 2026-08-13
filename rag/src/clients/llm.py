@@ -1,3 +1,4 @@
+import httpx
 import openai
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
@@ -12,11 +13,12 @@ class LLMClient:
     Thin client over an OpenAI-style chat completions endpoint.
     """
 
-    def __init__(self, config: LLMConfig) -> None:
+    def __init__(self, config: LLMConfig, client: httpx.AsyncClient) -> None:
         """
-        Build the chat model from the generation settings.
+        Build the chat model from the generation settings and the shared HTTP client.
 
         :param config: Answer generation service settings.
+        :param client: Shared async HTTP client.
         """
         self._model = ChatOpenAI(
             base_url=config.url,
@@ -25,6 +27,7 @@ class LLMClient:
             temperature=config.temperature,
             max_tokens=config.max_tokens,
             timeout=config.timeout_sec,
+            http_async_client=client,
         )
 
     async def complete(self, prompt: ChatPromptTemplate, values: dict[str, str]) -> str:
