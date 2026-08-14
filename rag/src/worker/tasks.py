@@ -15,6 +15,7 @@ from src.config import load_config
 from src.enums import JobState
 from src.errors import EmptyDocumentError, QdrantError
 from src.models import AppConfig, ChunkPayload, IngestResult
+from src.setup_logging import configure_logging
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ async def startup(ctx: WorkerContext) -> None:
     :param ctx: The worker context to populate.
     """
     cfg = load_config()
-    logging.basicConfig(level=cfg.logging.level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    configure_logging()
     http = httpx.AsyncClient()
     qdrant = QdrantClient(cfg.qdrant)
     try:
