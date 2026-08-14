@@ -1,6 +1,10 @@
 rag:
   prompts_path: /app/prompts.yaml
 
+  server:
+    host: 0.0.0.0
+    port: 8000
+
   queue:
     redis_url: redis://rag-redis:6379/0
     job_timeout: 21600
@@ -8,10 +12,12 @@ rag:
 
   logging:
     level: INFO
+    dir: /app/logs
 
   ingest:
     max_upload_bytes: 52428800
     allowed_extensions: [".pdf", ".docx", ".pptx", ".xlsx", ".html", ".md", ".txt"]
+    spool_dir: /spool
 
   docling:
     url: http://docling:5001

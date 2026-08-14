@@ -10,6 +10,15 @@ from qdrant_client.models import Document
 from src.enums import ChunkerKind, LogLevel
 
 
+class ServerConfig(BaseModel):
+    """
+    Settings for the API server.
+    """
+
+    host: str = "0.0.0.0"
+    port: int
+
+
 class QueueConfig(BaseModel):
     """
     Task queue settings.
@@ -26,6 +35,7 @@ class LoggingConfig(BaseModel):
     """
 
     level: LogLevel
+    dir: str
 
 
 class IngestConfig(BaseModel):
@@ -35,6 +45,7 @@ class IngestConfig(BaseModel):
 
     max_upload_bytes: int
     allowed_extensions: list[str]
+    spool_dir: str
 
 
 class DoclingConvertConfig(BaseModel):
@@ -199,6 +210,7 @@ class AppConfig(BaseSettings):
     )
 
     prompts_path: str
+    server: ServerConfig
     queue: QueueConfig
     logging: LoggingConfig
     ingest: IngestConfig
