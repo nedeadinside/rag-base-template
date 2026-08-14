@@ -1,24 +1,15 @@
-import hashlib
-import logging
-import uuid
-from pathlib import Path
-from typing import Any
-
 from langchain_core.prompts import ChatPromptTemplate
 from qdrant_client import models as qdrant_models
 
-from src.clients import DoclingClient, EmbedderClient, LLMClient, QdrantClient, RerankerClient
-from src.errors import EmptyDocumentError, QdrantError
-from src.models import Answer, AppConfig, ChunkPayload, IngestResult, RetrievedChunk, VerifierOutput
-
-logger = logging.getLogger(__name__)
+from src.clients import EmbedderClient, LLMClient, QdrantClient, RerankerClient
+from src.models import Answer, AppConfig, ChunkPayload, RetrievedChunk, VerifierOutput
 
 INSUFFICIENT_MESSAGE = "There is not enough information to answer this question."
 
 
 class Pipeline:
     """
-    Facade over the ingestion and question-answering steps.
+    Facade over the question-answering steps.
     """
 
     def __init__(
@@ -26,7 +17,6 @@ class Pipeline:
         config: AppConfig,
         prompts: dict[str, ChatPromptTemplate],
         *,
-        docling: DoclingClient,
         embedder: EmbedderClient,
         qdrant: QdrantClient,
         reranker: RerankerClient,
@@ -37,7 +27,6 @@ class Pipeline:
 
         :param config: The service settings.
         :param prompts: Prompt templates keyed by prompt name.
-        :param docling: Client for the docling chunking service.
         :param embedder: Client for the embedding service.
         :param qdrant: Client for the vector store.
         :param reranker: Client for the reranking service.
@@ -45,60 +34,10 @@ class Pipeline:
         """
         self._config = config
         self._prompts = prompts
-        self._docling = docling
         self._embedder = embedder
         self._qdrant = qdrant
         self._reranker = reranker
         self._llm = llm
-
-    async def ingest(self, file_path: str, collection: str, metadata: dict[str, Any]) -> IngestResult:
-        """
-        Ingest one document: chunk it, embed the chunks, and upsert them into the vector store.
-
-        :param file_path: Path to the spooled document on disk.
-        :param collection: Target Qdrant collection.
-        :param metadata: Caller-supplied metadata copied onto every point payload.
-        :raises RagError: If the document yields no text, or chunking, embedding, or the upsert fails.
-        :return: The ingestion result with the derived document id and produced chunk count.
-        """
-        chunks = await self._docling.chunk(file_path)
-        if not chunks:
-            raise EmptyDocumentError(f"no text extracted from {Path(file_path).name}")
-        digest = hashlib.blake2b(digest_size=16)
-        for chunk in chunks:
-            digest.update(chunk.text.encode())
-            digest.update(b"\n")
-        document_id = str(uuid.UUID(bytes=digest.digest(), version=5))
-        vectors = await self._embedder.embed(
-            [chunk.text for chunk in chunks],
-            prefix=self._config.embedder.passage_prefix,
-        )
-        await self._qdrant.ensure_collection(collection, vector_size=len(vectors[0]))
-        points = [
-            qdrant_models.PointStruct(
-                id=str(uuid.uuid5(uuid.UUID(document_id), str(i))),
-                vector={
-                    self._config.qdrant.dense_vector: vector,
-                    self._config.qdrant.sparse_vector: self._config.qdrant.bm25.document(chunk.text),
-                },
-                payload=ChunkPayload(
-                    document_id=document_id,
-                    text=chunk.text,
-                    headings=chunk.headings,
-                    metadata=metadata,
-                ).model_dump(),
-            )
-            for i, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))
-        ]
-        try:
-            await self._qdrant.upsert(collection, points)
-        except QdrantError:
-            try:
-                await self._qdrant.delete_document(collection, document_id)
-            except QdrantError as cleanup_error:
-                logger.warning("cleanup of document %s failed: %s", document_id, cleanup_error)
-            raise
-        return IngestResult(document_id=document_id, collection=collection, chunks=len(points))
 
     async def retrieve(
         self,
