@@ -222,3 +222,7 @@ __marimo__/
 # Addons
 .vscode
 .claude
+
+# Local config overrides
+*.local.yaml
+*.override.yml

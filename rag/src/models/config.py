@@ -201,10 +201,12 @@ class AppConfig(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        yaml_file="/app/config.yaml",
+        yaml_file=("config.yaml", "config.local.yaml"),
         yaml_config_section="rag",
+        env_file=".env",
         env_prefix="RAG_",
         env_nested_delimiter="__",
+        env_ignore_empty=True,
         extra="ignore",
         protected_namespaces=(),
     )
@@ -245,6 +247,6 @@ class AppConfig(BaseSettings):
             init_settings,
             env_settings,
             dotenv_settings,
-            YamlConfigSettingsSource(settings_cls),
+            YamlConfigSettingsSource(settings_cls, deep_merge=True),
             file_secret_settings,
         )
