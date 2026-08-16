@@ -12,6 +12,8 @@ x-app: &app
   image: default-rag/app:local
   restart: unless-stopped
   env_file: ["${ENV_FILE:-../.env}"]
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   volumes:
     - spool:/app/spool
   depends_on:
@@ -59,6 +61,8 @@ services:
   rag-api:
     <<: *app
     networks: [public, backend]
+    ports:
+      - "8000:8000"
     healthcheck:
       <<: *hc
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
