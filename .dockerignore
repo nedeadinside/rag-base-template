@@ -111,3 +111,16 @@ pip-log.txt
 .python-version
 .scrapy
 .webassets-cache
+
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# Project (build context is the repository root)
+# ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+
+.git/
+.env
+deploy/
+logs/
+models/
+spool/
+my_concrete_rag/
+PLAN.md
