@@ -15,7 +15,7 @@ rag:
 
   ingest:
     max_upload_bytes: 52428800
-    allowed_extensions: [".pdf", ".docx", ".pptx", ".xlsx", ".html", ".md", ".txt"]
+    allowed_extensions: [".pdf"]
     spool_dir: spool
 
   docling:
@@ -29,35 +29,35 @@ rag:
       pdf_heading_hierarchy: true
       include_images: false
     chunking:
-      max_tokens: 512
+      max_tokens: # add here
       merge_peers: true
 
   embedder:
-    model:
+    model: # add here
     timeout_sec: 60
     batch_size: 32
     max_concurrency: 4
-    query_prefix: query
-    passage_prefix: passage
+    query_prefix: # add here
+    passage_prefix: # add here
 
   qdrant:
     timeout_sec: 30
     upsert_batch_size: 128
-    dense_vector: dense
-    sparse_vector: bm25
+    dense_vector: # add here
+    sparse_vector: # add here
     bm25:
-      language: english
-      tokenizer: multilingual
+      language: # add here
+      tokenizer: # add here
 
   reranker:
-    model:
+    model: # add here
     timeout_sec: 60
 
   llm:
-    model:
-    timeout_sec: 120
-    temperature: 0.2
-    max_tokens: 1024
+    model: # add here
+    timeout_sec: # add here
+    temperature: # add here
+    max_tokens: # add here
 
   retrieve:
     top_k: 20
