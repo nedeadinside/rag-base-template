@@ -11,7 +11,7 @@ from fastapi import APIRouter, File, Form, UploadFile
 from src.api.deps import StateDep
 from src.errors import ResourceError, ResourceTooLargeError, UnsupportedFormatError
 from src.models import IngestAccepted, JobStatusReport
-from src.worker import get_status
+from src.worker import cancel_job, get_status
 
 logger = logging.getLogger(__name__)
 
@@ -81,3 +81,16 @@ async def status(job_id: str, state: StateDep) -> JobStatusReport:
     :return: The job's current status.
     """
     return await get_status(state.redis, job_id)
+
+
+@router.post("/{job_id}/cancel", status_code=202)
+async def cancel(job_id: str, state: StateDep) -> dict[str, str]:
+    """
+    Cancel a queued or running ingestion job.
+
+    :param job_id: Identifier the job was enqueued under.
+    :param state: Application-wide dependencies.
+    :return: The job id and the outcome of the cancellation attempt.
+    """
+    success = await cancel_job(state.redis, job_id)
+    return {"job_id": job_id, "status": "canceled" if success else "failed_to_cancel"}

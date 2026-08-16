@@ -22,6 +22,7 @@ class JobState(StrEnum):
     IN_PROGRESS = "in_progress"
     SUCCESS = "success"
     FAILED = "failed"
+    CANCELED = "canceled"
     NOT_FOUND = "not_found"
 
 

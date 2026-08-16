@@ -1,3 +1,5 @@
+import asyncio
+
 from arq.jobs import Job, JobStatus
 from redis.asyncio import Redis
 
@@ -30,4 +32,23 @@ async def get_status(redis: Redis, job_id: str) -> JobStatusReport:
         return JobStatusReport(job_id=job_id, status=JobState.NOT_FOUND)
     if info.success:
         return JobStatusReport(job_id=job_id, status=JobState.SUCCESS, result=info.result)
+    if isinstance(info.result, asyncio.CancelledError):
+        return JobStatusReport(job_id=job_id, status=JobState.CANCELED)
     return JobStatusReport(job_id=job_id, status=JobState.FAILED, error=str(info.result))
+
+
+async def cancel_job(redis: Redis, job_id: str) -> bool:
+    """
+    Abort a queued or running job.
+
+    :param redis: Redis connection used by the queue.
+    :param job_id: Identifier the job was enqueued under.
+    :return: True if the abort was confirmed before the timeout. False means the confirmation was not
+        observed in time, not that the job survived: the abort is already registered, so the job still
+        ends up canceled.
+    """
+    job = Job(job_id, redis)
+    try:
+        return await job.abort()
+    except TimeoutError:
+        return False

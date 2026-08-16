@@ -1,1 +1,1 @@
-from .jobs import get_status
+from .jobs import cancel_job, get_status
