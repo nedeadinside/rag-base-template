@@ -1,0 +1,80 @@
+name: default-rag
+
+x-healthcheck: &hc
+  interval: 15s
+  timeout: 5s
+  retries: 5
+  start_period: 60s
+
+x-app: &app
+  build:
+    context: ..
+  image: default-rag/app:local
+  restart: unless-stopped
+  env_file: ["${ENV_FILE:-../.env}"]
+  volumes:
+    - spool:/app/spool
+  depends_on:
+    redis: {condition: service_healthy}
+    docling: {condition: service_healthy}
+    qdrant: {condition: service_started}
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [backend]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      <<: *hc
+      start_period: 15s
+      test: ["CMD", "redis-cli", "ping"]
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.0
+    restart: unless-stopped
+    networks: [backend]
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  docling:
+    image: ghcr.io/docling-project/docling-serve-cpu:v1.30.0
+    restart: unless-stopped
+    networks: [public, backend]
+    environment:
+      DOCLING_DEVICE: cpu
+      UVICORN_WORKERS: "1"
+      DOCLING_SERVE_ENG_LOC_NUM_WORKERS: "1"
+      DOCLING_SERVE_LOAD_MODELS_AT_BOOT: "true"
+      DOCLING_SERVE_PRELOAD_PIPELINES: '["pdf"]'
+      DOCLING_PERF_PAGE_BATCH_SIZE: "16"
+      DOCLING_SERVE_LAYOUT_BATCH_SIZE: "16"
+    healthcheck:
+      <<: *hc
+      start_period: 300s
+      test: ["CMD", "curl", "-fsS", "http://localhost:5001/health"]
+
+  rag-api:
+    <<: *app
+    networks: [public, backend]
+    healthcheck:
+      <<: *hc
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+
+  worker:
+    <<: *app
+    command: ["arq", "src.worker.tasks.WorkerSettings"]
+    networks: [public, backend]
+    stop_grace_period: 120s
+
+networks:
+  public: {}
+  backend:
+    internal: true
+
+volumes:
+  redis-data:
+  qdrant-data:
+  spool:

@@ -1,0 +1,10 @@
+services:
+  docling:
+    image: ghcr.io/docling-project/docling-serve-cu130:v1.30.0
+    environment:
+      DOCLING_DEVICE: cuda
+      TORCHINDUCTOR_USE_STATIC_CUDA_LAUNCHER: "0"
+    gpus:
+      - driver: nvidia
+        count: 1
+        capabilities: [gpu]
