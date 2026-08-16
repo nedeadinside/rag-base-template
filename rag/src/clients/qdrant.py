@@ -27,6 +27,18 @@ class QdrantClient:
         """
         await self._client.close()
 
+    async def ping(self) -> bool:
+        """
+        Check whether the Qdrant store is reachable.
+
+        :return: True if the store responded, False on any connectivity or API error.
+        """
+        try:
+            await self._client.get_collections()
+        except (UnexpectedResponse, ApiException, QdrantException):
+            return False
+        return True
+
     async def ensure_collection(self, collection: str, *, vector_size: int) -> None:
         """
         Ensure the collection exists with the expected schema, creating it when missing.

@@ -1,3 +1,4 @@
+from .api import AskRequest, AskResponse, ContextChunk, HealthReport, IngestAccepted
 from .clients import Chunk
 from .config import (
     AppConfig,
