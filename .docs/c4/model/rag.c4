@@ -1,32 +1,36 @@
 model {
   extend rag {
-    worker = container 'Worker' {
-      technology 'ARQ / Python'
-      description 'Consumes ingestion jobs and runs the pipeline'
+    api = container 'API' {
+      technology 'FastAPI / Python'
+      description 'Serves the ask, ingest, and health endpoints; answers questions in-process, and spools and enqueues documents for the worker to ingest'
 
-      task = component 'Ingest Task' {
-        technology 'ARQ task'
-        description 'Orchestrates one ingestion job, removes the spooled file and fires the webhook callback'
+      askRoute = component 'Ask Route' {
+        technology 'FastAPI router'
+        description 'Answers a question against a collection'
       }
-      statusReader = component 'Job Status Reader' {
-        technology 'Python'
-        description 'Reports the state of a job with its result or error text'
+      ingestRoute = component 'Ingest Route' {
+        technology 'FastAPI router'
+        description 'Spools an uploaded document to disk, enqueues the ingestion job, and reports or cancels its status'
+      }
+      healthRoute = component 'Health Route' {
+        technology 'FastAPI router'
+        description 'Reports whether qdrant and the broker are reachable'
       }
       pipeline = component 'Pipeline' {
         technology 'Python'
-        description 'Facade over ingestion and question answering: chunk, embed, upsert, search, rerank, verify, generate'
+        description 'Answers questions: retrieves and reranks context, optionally verifies it is sufficient, then generates the answer'
       }
-      doclingClient = component 'Docling Client' {
-        technology 'httpx'
-        description 'Submits documents to docling-serve as async tasks, polls them and fetches the chunks'
+      statusReader = component 'Job Status Reader' {
+        technology 'Python / arq'
+        description 'Reports the state of a job with its result or error text, and cancels queued or running jobs'
       }
       embedderClient = component 'Embedder Client' {
         technology 'httpx'
-        description 'Embeds texts in concurrent batches'
+        description 'Embeds the query text for retrieval'
       }
       qdrantClient = component 'Qdrant Client' {
         technology 'qdrant-client SDK'
-        description 'Ensures the dense + sparse collection schema, upserts points and runs hybrid search'
+        description 'Runs hybrid dense + BM25 search fused by RRF, and checks store connectivity for health checks'
       }
       rerankerClient = component 'Reranker Client' {
         technology 'httpx'
@@ -36,18 +40,46 @@ model {
         technology 'langchain-openai'
         description 'Renders the prompt template and generates free-form or schema-constrained completions'
       }
+
+      askRoute -> pipeline 'answers via'
+      ingestRoute -> statusReader 'reports job status via'
+      ingestRoute -> statusReader 'cancels job via'
+      healthRoute -> qdrantClient 'checks connectivity via'
+      pipeline -> embedderClient 'embeds the query via'
+      pipeline -> qdrantClient 'searches via'
+      pipeline -> rerankerClient 'reranks candidates via'
+      pipeline -> llmClient 'checks context sufficiency via'
+      pipeline -> llmClient 'generates answer via'
+    }
+
+    worker = container 'Worker' {
+      technology 'ARQ / Python'
+      description 'Consumes ingestion jobs, chunks and embeds the spooled document, and upserts it into the vector store'
+
+      task = component 'Ingest Task' {
+        technology 'ARQ task'
+        description 'Orchestrates one ingestion job, removes the spooled file and fires the webhook callback'
+      }
+      doclingClient = component 'Docling Client' {
+        technology 'httpx'
+        description 'Submits documents to docling-serve as async tasks, polls them and fetches the chunks'
+      }
+      embedderClient = component 'Embedder Client' {
+        technology 'httpx'
+        description 'Embeds chunk texts in concurrent batches'
+      }
+      qdrantClient = component 'Qdrant Client' {
+        technology 'qdrant-client SDK'
+        description 'Ensures the dense + sparse collection schema and upserts embedded chunks'
+      }
       webhookClient = component 'Webhook Client' {
         technology 'httpx'
         description 'Delivers status callbacks'
       }
 
-      task -> pipeline 'runs ingestion via' 'in-process call'
-      pipeline -> doclingClient 'chunks document via'
-      pipeline -> embedderClient 'embeds chunks and queries via'
-      pipeline -> qdrantClient 'upserts dense + sparse points and searches via'
-      pipeline -> rerankerClient 'reranks candidates via'
-      pipeline -> llmClient 'checks context sufficiency via'
-      pipeline -> llmClient 'generates answer via'
+      task -> doclingClient 'chunks document via'
+      task -> embedderClient 'embeds chunks via'
+      task -> qdrantClient 'ensures schema and upserts chunks via'
       task -> webhookClient 'delivers callback via'
     }
 
@@ -56,15 +88,22 @@ model {
       description 'ARQ task queue and result store'
     }
 
+    api.ingestRoute -[async]-> broker 'enqueues ingestion job' 'RESP over TCP'
+    api.ingestRoute -> worker.task 'hands off the spooled upload via' 'Docker volume'
+    api.statusReader -> broker 'reads job state and result' 'RESP over TCP'
+    api.statusReader -> broker 'aborts a queued or running job' 'RESP over TCP'
+    api.healthRoute -> broker 'checks connectivity' 'RESP over TCP'
+    api.embedderClient -> embedder 'POST /embeddings' 'HTTP / JSON'
+    api.qdrantClient -> qdrant 'dense + BM25 prefetch search fused by RRF, and connectivity checks' 'HTTP / JSON'
+    api.rerankerClient -> reranker 'POST /rerank' 'HTTP / JSON'
+    api.llmClient -> llm 'POST /chat/completions' 'HTTP / JSON'
+
     worker.task -[async]-> broker 'consumes job / stores result' 'RESP over TCP'
-    worker.statusReader -> broker 'reads job state and result' 'RESP over TCP'
     worker.doclingClient -> docling 'POST /v1/chunk/{chunker}/file/async' 'multipart/form-data over HTTP'
     worker.doclingClient -> docling 'GET /v1/status/poll/{task_id} until terminal' 'HTTP / JSON'
     worker.doclingClient -> docling 'GET /v1/result/{task_id}' 'HTTP / JSON'
     worker.embedderClient -> embedder 'POST /embeddings' 'HTTP / JSON'
-    worker.qdrantClient -> qdrant 'upserts points, queries dense + BM25 fused by RRF' 'HTTP / JSON'
-    worker.rerankerClient -> reranker 'POST /rerank' 'HTTP / JSON'
-    worker.llmClient -> llm 'POST /chat/completions' 'HTTP / JSON'
+    worker.qdrantClient -> qdrant 'creates dense + sparse collection, writes points' 'HTTP / JSON'
     worker.webhookClient -[async]-> webhook 'POST job status' 'HTTP / JSON'
   }
 }

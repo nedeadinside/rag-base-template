@@ -6,10 +6,17 @@ views {
     autoLayout LeftRight
   }
 
+  view ragApiComponents of rag.api {
+    title 'Components - API'
+    include *
+    include rag.broker, rag.worker.task, embedder, qdrant, reranker, llm
+    autoLayout LeftRight
+  }
+
   view ragWorkerComponents of rag.worker {
     title 'Components - Worker'
     include *
-    include rag.broker, docling, embedder, qdrant, reranker, llm, webhook
+    include rag.broker, rag.api.ingestRoute, docling, embedder, qdrant, webhook
     autoLayout LeftRight
   }
 }

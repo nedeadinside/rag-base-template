@@ -2,15 +2,16 @@ views {
   dynamic view ingestFlow {
     title 'Flow - Ingest a document'
 
+    user -> rag.api.ingestRoute 'POST /ingest, multipart upload'
+    rag.api.ingestRoute -> rag.broker 'spools file to shared volume, enqueue_job(ingest, path, webhook_url, collection, metadata)'
     rag.worker.task -> rag.broker 'picks up job'
-    rag.worker.task -> rag.worker.pipeline 'ingest(file, collection, metadata)'
-    rag.worker.pipeline -> rag.worker.doclingClient 'chunk(file)'
+    rag.worker.task -> rag.worker.doclingClient 'chunk(file)'
     rag.worker.doclingClient -> docling 'POST /v1/chunk/{chunker}/file/async'
     rag.worker.doclingClient -> docling 'GET /v1/status/poll/{task_id}, until success'
     rag.worker.doclingClient -> docling 'GET /v1/result/{task_id}'
-    rag.worker.pipeline -> rag.worker.embedderClient 'embed(chunk texts)'
+    rag.worker.task -> rag.worker.embedderClient 'embed(chunk texts)'
     rag.worker.embedderClient -> embedder 'POST /embeddings, batches in parallel'
-    rag.worker.pipeline -> rag.worker.qdrantClient 'ensure_collection(size) then upsert(points)'
+    rag.worker.task -> rag.worker.qdrantClient 'ensure_collection(size) then upsert(points)'
     rag.worker.qdrantClient -> qdrant 'creates dense + sparse collection, writes points'
     rag.worker.task -> rag.worker.webhookClient 'notify(status)'
     rag.worker.webhookClient -> webhook 'POST job status'
@@ -21,16 +22,17 @@ views {
   dynamic view answerFlow {
     title 'Flow - Answer a question'
 
-    rag.worker.pipeline -> rag.worker.embedderClient 'embed(query)'
-    rag.worker.embedderClient -> embedder 'POST /embeddings'
-    rag.worker.pipeline -> rag.worker.qdrantClient 'search(vector, query text, top_k)'
-    rag.worker.qdrantClient -> qdrant 'dense and BM25 prefetches, fused by RRF'
-    rag.worker.pipeline -> rag.worker.rerankerClient 'rerank(query, candidates, top_n)'
-    rag.worker.rerankerClient -> reranker 'POST /rerank'
-    rag.worker.pipeline -> rag.worker.llmClient 'complete_structured(verify prompt, chunks)'
-    rag.worker.llmClient -> llm 'POST /chat/completions, can_answer verdict'
-    rag.worker.pipeline -> rag.worker.llmClient 'complete(answer prompt, context), only if can_answer'
-    rag.worker.llmClient -> llm 'POST /chat/completions'
+    rag.api.askRoute -> rag.api.pipeline 'answer(query, collection, metadata_filter)'
+    rag.api.pipeline -> rag.api.embedderClient 'embed(query)'
+    rag.api.embedderClient -> embedder 'POST /embeddings'
+    rag.api.pipeline -> rag.api.qdrantClient 'search(vector, query text, top_k)'
+    rag.api.qdrantClient -> qdrant 'dense and BM25 prefetches filtered by metadata, fused by RRF'
+    rag.api.pipeline -> rag.api.rerankerClient 'rerank(query, candidates, top_n)'
+    rag.api.rerankerClient -> reranker 'POST /rerank'
+    rag.api.pipeline -> rag.api.llmClient 'complete_structured(verify prompt, chunks), only if retrieve.verify'
+    rag.api.llmClient -> llm 'POST /chat/completions, can_answer verdict'
+    rag.api.pipeline -> rag.api.llmClient 'complete(answer prompt, context), only if can_answer'
+    rag.api.llmClient -> llm 'POST /chat/completions'
 
     autoLayout LeftRight
   }
