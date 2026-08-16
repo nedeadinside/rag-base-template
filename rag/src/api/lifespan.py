@@ -48,7 +48,6 @@ def build_state(
 
     return AppState(
         config=config,
-        http=http,
         qdrant=qdrant,
         pipeline=pipeline,
         redis=redis,

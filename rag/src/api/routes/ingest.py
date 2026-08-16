@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, Response, UploadFile
 
 from src.api.deps import StateDep
 from src.errors import ResourceError, ResourceTooLargeError, UnsupportedFormatError
-from src.models import IngestAccepted, JobStatusReport
+from src.models import CancelReport, IngestAccepted, JobStatusReport
 from src.worker import cancel_job, get_status
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ async def submit(
     await asyncio.to_thread(_spill)
 
     job = await state.redis.enqueue_job("ingest", str(target), webhook_url, collection, metadata_dict)
-    logger.info("Ingest job %s queued for %s", job.job_id, file.filename)
+    logger.info("Ingest job %s queued for %r", job.job_id, file.filename)
     return IngestAccepted(job_id=job.job_id)
 
 
@@ -83,14 +83,18 @@ async def status(job_id: str, state: StateDep) -> JobStatusReport:
     return await get_status(state.redis, job_id)
 
 
-@router.post("/{job_id}/cancel", status_code=202)
-async def cancel(job_id: str, state: StateDep) -> dict[str, str]:
+@router.post("/{job_id}/cancel", status_code=202, responses={409: {"model": CancelReport}})
+async def cancel(job_id: str, response: Response, state: StateDep) -> CancelReport:
     """
     Cancel a queued or running ingestion job.
 
     :param job_id: Identifier the job was enqueued under.
+    :param response: Response object used to set the status code based on the outcome.
     :param state: Application-wide dependencies.
-    :return: The job id and the outcome of the cancellation attempt.
+    :return: The job id and whether the abort was confirmed before the timeout. When it was not
+        confirmed in time, the abort is still registered and the job will still end up canceled once a
+        worker picks it up; the response status is set to 409 in that case.
     """
-    success = await cancel_job(state.redis, job_id)
-    return {"job_id": job_id, "status": "canceled" if success else "failed_to_cancel"}
+    canceled = await cancel_job(state.redis, job_id, timeout_sec=state.config.queue.cancel_timeout_sec)
+    response.status_code = 202 if canceled else 409
+    return CancelReport(job_id=job_id, canceled=canceled)

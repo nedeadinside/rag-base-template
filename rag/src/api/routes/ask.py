@@ -15,11 +15,11 @@ async def ask(req: AskRequest, state: StateDep) -> AskResponse:
     """
     Answer a question against a collection.
 
-    :param req: The query, target collection, and context flag.
+    :param req: The query, target collection, metadata filter, and context flag.
     :param state: Application-wide dependencies.
     :return: The generated answer, with grounding chunks when requested.
     """
-    answer = await state.pipeline.answer(req.query, req.collection)
+    answer = await state.pipeline.answer(req.query, req.collection, metadata_filter=req.metadata_filter)
     context = (
         [
             ContextChunk(text=chunk.text, score=chunk.score, document_id=chunk.document_id, metadata=chunk.metadata)

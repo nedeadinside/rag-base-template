@@ -104,6 +104,7 @@ async def _ingest_document(
         prefix=cfg.embedder.passage_prefix,
     )
     await qdrant.ensure_collection(collection, vector_size=len(vectors[0]))
+    document_existed = await qdrant.document_exists(collection, document_id)
     points = [
         qdrant_models.PointStruct(
             id=str(uuid.uuid5(uuid.UUID(document_id), str(i))),
@@ -123,10 +124,18 @@ async def _ingest_document(
     try:
         await qdrant.upsert(collection, points)
     except QdrantError:
-        try:
-            await qdrant.delete_document(collection, document_id)
-        except QdrantError as cleanup_error:
-            logger.warning("cleanup of document %s failed: %s", document_id, cleanup_error)
+        if document_existed:
+            logger.warning(
+                "upsert failed for document %s which already existed before this ingest; skipping cleanup, "
+                "collection %s may now hold a mix of old and new points",
+                document_id,
+                collection,
+            )
+        else:
+            try:
+                await qdrant.delete_document(collection, document_id)
+            except QdrantError as cleanup_error:
+                logger.warning("cleanup of document %s failed: %s", document_id, cleanup_error)
         raise
     return IngestResult(document_id=document_id, collection=collection, chunks=len(points))
 

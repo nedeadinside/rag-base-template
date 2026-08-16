@@ -37,13 +37,19 @@ async def get_status(redis: Redis, job_id: str) -> JobStatusReport:
     return JobStatusReport(job_id=job_id, status=JobState.FAILED, error=str(info.result))
 
 
-async def cancel_job(redis: Redis, job_id: str) -> bool:
+async def cancel_job(redis: Redis, job_id: str, *, timeout_sec: float) -> bool:
     """
     Abort a queued or running job.
 
     :param redis: Redis connection used by the queue.
     :param job_id: Identifier the job was enqueued under.
-    :return: True if the job aborted properly, False otherwise
+    :param timeout_sec: Seconds to wait for the abort to be confirmed by a worker.
+    :return: True if the abort was confirmed before the timeout. False means the confirmation was not
+        observed in time, not that the job survived: the abort is already registered, so the job still
+        ends up canceled once a worker picks it up.
     """
     job = Job(job_id, redis)
-    return await job.abort()
+    try:
+        return await job.abort(timeout=timeout_sec)
+    except TimeoutError:
+        return False

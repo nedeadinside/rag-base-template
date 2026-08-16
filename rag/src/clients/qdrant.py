@@ -1,9 +1,31 @@
+from typing import Any
+
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.common.client_exceptions import QdrantException
 from qdrant_client.http.exceptions import ApiException, UnexpectedResponse
 
 from src.errors import QdrantError
 from src.models import QdrantConfig
+
+
+def build_metadata_filter(metadata: dict[str, Any] | None) -> models.Filter | None:
+    """
+    Build a filter matching points whose ingested metadata equals the given values.
+
+    :param metadata: Metadata keys and the values they must match, or None for no filtering.
+    :return: A filter requiring every key to match, or None when no metadata was given.
+    """
+    if not metadata:
+        return None
+    return models.Filter(
+        must=[
+            models.FieldCondition(
+                key=f"metadata.{key}",
+                match=models.MatchAny(any=value) if isinstance(value, list) else models.MatchValue(value=value),
+            )
+            for key, value in metadata.items()
+        ]
+    )
 
 
 class QdrantClient:
@@ -124,6 +146,34 @@ class QdrantClient:
         except (ApiException, QdrantException) as e:
             raise QdrantError(f"delete document failed: {type(e).__name__}") from e
 
+    async def document_exists(self, collection: str, document_id: str) -> bool:
+        """
+        Check whether the collection already holds at least one point for a document.
+
+        Uses a filtered scroll capped at a single point, with payload and vectors disabled, so the
+        match is exact and the request stops at the first hit instead of counting every point.
+
+        :param collection: Name of the target collection.
+        :param document_id: Id of the document to look up.
+        :raises QdrantError: If the store is unreachable or the request fails.
+        :return: True if the collection holds at least one point for the document, False otherwise.
+        """
+        try:
+            points, _ = await self._client.scroll(
+                collection,
+                scroll_filter=models.Filter(
+                    must=[models.FieldCondition(key="document_id", match=models.MatchValue(value=document_id))]
+                ),
+                limit=1,
+                with_payload=False,
+                with_vectors=False,
+            )
+        except UnexpectedResponse as e:
+            raise QdrantError(f"document exists check failed: HTTP {e.status_code}") from e
+        except (ApiException, QdrantException) as e:
+            raise QdrantError(f"document exists check failed: {type(e).__name__}") from e
+        return len(points) > 0
+
     async def search(
         self,
         collection: str,
@@ -132,7 +182,7 @@ class QdrantClient:
         *,
         limit: int,
         prefetch_limit: int,
-        query_filter: models.Filter | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ) -> list[models.ScoredPoint]:
         """
         Search the collection with dense and BM25 sparse prefetches merged by reciprocal rank fusion.
@@ -142,10 +192,11 @@ class QdrantClient:
         :param query_text: Original query text, scored server-side by BM25 for the sparse prefetch.
         :param limit: Maximum number of fused hits to return.
         :param prefetch_limit: Maximum number of hits each prefetch retrieves before fusion.
-        :param query_filter: Optional Qdrant filter applied to both prefetches.
+        :param metadata_filter: Ingested metadata the hits must match, restricting both prefetches.
         :raises QdrantError: If the store is unreachable or the request fails.
         :return: Scored points with id, score, and payload.
         """
+        query_filter = build_metadata_filter(metadata_filter)
         prefetch = [
             models.Prefetch(
                 query=vector,

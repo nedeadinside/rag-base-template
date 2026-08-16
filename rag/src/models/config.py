@@ -27,6 +27,7 @@ class QueueConfig(BaseModel):
     redis_url: str
     job_timeout: int
     concurrency: int
+    cancel_timeout_sec: float
 
 
 class LoggingConfig(BaseModel):
@@ -35,7 +36,6 @@ class LoggingConfig(BaseModel):
     """
 
     level: LogLevel
-    dir: str
 
 
 class IngestConfig(BaseModel):

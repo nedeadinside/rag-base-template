@@ -2,6 +2,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+type MetadataValue = str | int | bool
+
 
 class ContextChunk(BaseModel):
     """
@@ -21,6 +23,10 @@ class AskRequest(BaseModel):
 
     query: str = Field(min_length=1, max_length=8192, description="User question to answer.")
     collection: str = Field(description="Name of the collection to search.")
+    metadata_filter: dict[str, MetadataValue | list[MetadataValue]] | None = Field(
+        default=None,
+        description="Ingested metadata the retrieved chunks must match; a list value matches any of its items.",
+    )
     include_context: bool = Field(default=False, description="Whether to return the chunks the answer is grounded on.")
 
 
@@ -39,6 +45,15 @@ class IngestAccepted(BaseModel):
     """
 
     job_id: str
+
+
+class CancelReport(BaseModel):
+    """
+    Response body reporting the outcome of a job cancellation request.
+    """
+
+    job_id: str
+    canceled: bool
 
 
 class HealthReport(BaseModel):

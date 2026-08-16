@@ -1,5 +1,6 @@
+from typing import Any
+
 from langchain_core.prompts import ChatPromptTemplate
-from qdrant_client import models as qdrant_models
 
 from src.clients import EmbedderClient, LLMClient, QdrantClient, RerankerClient
 from src.models import Answer, AppConfig, ChunkPayload, RetrievedChunk, VerifierOutput
@@ -40,18 +41,14 @@ class Pipeline:
         self._llm = llm
 
     async def retrieve(
-        self,
-        query: str,
-        collection: str,
-        *,
-        query_filter: qdrant_models.Filter | None = None,
+        self, query: str, collection: str, *, metadata_filter: dict[str, Any] | None = None
     ) -> list[RetrievedChunk]:
         """
         Retrieve chunks for a query: embed it, search the vector store, and rerank the candidates.
 
         :param query: The natural-language query.
         :param collection: Target Qdrant collection.
-        :param query_filter: Optional Qdrant filter applied to the search.
+        :param metadata_filter: Ingested metadata the retrieved chunks must match.
         :raises RagError: If embedding, search, or reranking fails.
         :return: The reranked chunks, best first.
         """
@@ -62,7 +59,7 @@ class Pipeline:
             query,
             limit=self._config.retrieve.top_k,
             prefetch_limit=self._config.retrieve.top_k * self._config.retrieve.prefetch_multiplier,
-            query_filter=query_filter,
+            metadata_filter=metadata_filter,
         )
         if not hits:
             return []
@@ -110,13 +107,7 @@ class Pipeline:
         text = await self._llm.complete(self._prompts["answer"], {"context": context, "question": query})
         return Answer(text=text, sources=chunks)
 
-    async def answer(
-        self,
-        query: str,
-        collection: str,
-        *,
-        query_filter: qdrant_models.Filter | None = None,
-    ) -> Answer:
+    async def answer(self, query: str, collection: str, *, metadata_filter: dict[str, Any] | None = None) -> Answer:
         """
         Answer a query end to end: retrieve, verify, then generate over the grounding chunks.
 
@@ -125,11 +116,11 @@ class Pipeline:
 
         :param query: The natural-language query.
         :param collection: Target Qdrant collection.
-        :param query_filter: Optional Qdrant filter applied to the search.
+        :param metadata_filter: Ingested metadata the retrieved chunks must match.
         :raises RagError: If retrieval, verification, or generation fails.
         :return: The generated answer with the chunks it was grounded on.
         """
-        chunks = await self.retrieve(query, collection, query_filter=query_filter)
+        chunks = await self.retrieve(query, collection, metadata_filter=metadata_filter)
         if not chunks:
             return Answer(text=INSUFFICIENT_MESSAGE, sources=[])
         if self._config.retrieve.verify and not await self.verify(query, chunks):

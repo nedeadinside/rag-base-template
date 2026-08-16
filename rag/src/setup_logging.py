@@ -1,8 +1,6 @@
 import logging
 import sys
 from contextvars import ContextVar
-from logging.handlers import TimedRotatingFileHandler
-from pathlib import Path
 
 from src.config import load_config
 
@@ -28,7 +26,7 @@ class RequestIDFormatter(logging.Formatter):
 
 def configure_logging() -> None:
     """
-    Configure root logger once for the whole process.
+    Configure root logger once for the whole process, writing to stdout.
     """
     root = logging.getLogger()
 
@@ -50,32 +48,3 @@ def configure_logging() -> None:
     console_handler.setLevel(config.level)
     console_handler.setFormatter(formatter)
     root.addHandler(console_handler)
-
-    log_dir = Path(config.dir)
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    info_handler = TimedRotatingFileHandler(
-        filename=log_dir / "info.log",
-        when="midnight",
-        interval=1,
-        backupCount=14,
-        encoding="utf-8",
-        utc=False,
-    )
-    info_handler.setLevel(logging.INFO)
-    info_handler.setFormatter(formatter)
-    info_handler.suffix = "%Y-%m-%d"
-    root.addHandler(info_handler)
-
-    error_handler = TimedRotatingFileHandler(
-        filename=log_dir / "error.log",
-        when="midnight",
-        interval=1,
-        backupCount=30,
-        encoding="utf-8",
-        utc=False,
-    )
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(formatter)
-    error_handler.suffix = "%Y-%m-%d"
-    root.addHandler(error_handler)

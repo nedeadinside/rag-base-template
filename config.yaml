@@ -8,10 +8,10 @@ rag:
   queue:
     job_timeout: 21600
     concurrency: 4
+    cancel_timeout_sec: 5.0
 
   logging:
     level: INFO
-    dir: logs
 
   ingest:
     max_upload_bytes: 52428800
